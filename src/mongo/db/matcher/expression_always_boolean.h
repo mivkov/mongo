@@ -49,7 +49,7 @@ public:
         return _value;
     }
 
-    bool matchesSingleElement(const BSONElement&, MatchDetails* details = nullptr) const final {
+    bool matchesSingleValue(const Value2&, MatchDetails* details = nullptr) const final {
         return _value;
     }
 

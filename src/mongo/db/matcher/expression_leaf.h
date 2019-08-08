@@ -31,11 +31,11 @@
 
 #include <memory>
 
-#include "mongo/bson/bsonelement_comparator.h"
 #include "mongo/bson/bsonmisc.h"
 #include "mongo/bson/bsonobj.h"
 #include "mongo/db/matcher/expression.h"
 #include "mongo/db/matcher/expression_path.h"
+#include "mongo/db/pipeline/value_comparator2.h"
 #include "mongo/db/query/collation/collator_interface.h"
 #include "mongo/stdx/unordered_map.h"
 
@@ -117,6 +117,10 @@ public:
     virtual StringData name() const = 0;
 
     const BSONElement& getData() const {
+        return _rhsbson;
+    }
+
+    const Value2& getValue() const {
         return _rhs;
     }
 
@@ -125,7 +129,8 @@ public:
      * BSONObj backing 'elem' outlives this MatchExpression.
      */
     void setData(BSONElement elem) {
-        _rhs = elem;
+        _rhsbson = elem;
+        _rhs = Value2(elem);
     }
 
     const CollatorInterface* getCollator() const {
@@ -140,7 +145,8 @@ protected:
         _collator = collator;
     }
 
-    BSONElement _rhs;
+    BSONElement _rhsbson;
+    Value2 _rhs;
 
     // Collator used to compare elements. By default, simple binary comparison will be used.
     const CollatorInterface* _collator = nullptr;
@@ -176,7 +182,7 @@ public:
 
     virtual ~ComparisonMatchExpression() = default;
 
-    bool matchesSingleElement(const BSONElement&, MatchDetails* details = nullptr) const final;
+    bool matchesSingleValue(const Value2&, MatchDetails* details = nullptr) const final;
 };
 
 class EqualityMatchExpression final : public ComparisonMatchExpression {
@@ -192,7 +198,7 @@ public:
 
     virtual std::unique_ptr<MatchExpression> shallowClone() const {
         std::unique_ptr<ComparisonMatchExpression> e =
-            std::make_unique<EqualityMatchExpression>(path(), _rhs);
+            std::make_unique<EqualityMatchExpression>(path(), _rhsbson);
         if (getTag()) {
             e->setTag(getTag()->clone());
         }
@@ -214,7 +220,7 @@ public:
 
     virtual std::unique_ptr<MatchExpression> shallowClone() const {
         std::unique_ptr<ComparisonMatchExpression> e =
-            std::make_unique<LTEMatchExpression>(path(), _rhs);
+            std::make_unique<LTEMatchExpression>(path(), _rhsbson);
         if (getTag()) {
             e->setTag(getTag()->clone());
         }
@@ -236,7 +242,7 @@ public:
 
     virtual std::unique_ptr<MatchExpression> shallowClone() const {
         std::unique_ptr<ComparisonMatchExpression> e =
-            std::make_unique<LTMatchExpression>(path(), _rhs);
+            std::make_unique<LTMatchExpression>(path(), _rhsbson);
         if (getTag()) {
             e->setTag(getTag()->clone());
         }
@@ -258,7 +264,7 @@ public:
 
     virtual std::unique_ptr<MatchExpression> shallowClone() const {
         std::unique_ptr<ComparisonMatchExpression> e =
-            std::make_unique<GTMatchExpression>(path(), _rhs);
+            std::make_unique<GTMatchExpression>(path(), _rhsbson);
         if (getTag()) {
             e->setTag(getTag()->clone());
         }
@@ -280,7 +286,7 @@ public:
 
     virtual std::unique_ptr<MatchExpression> shallowClone() const {
         std::unique_ptr<ComparisonMatchExpression> e =
-            std::make_unique<GTEMatchExpression>(path(), _rhs);
+            std::make_unique<GTEMatchExpression>(path(), _rhsbson);
         if (getTag()) {
             e->setTag(getTag()->clone());
         }
@@ -307,7 +313,7 @@ public:
         return std::move(e);
     }
 
-    bool matchesSingleElement(const BSONElement&, MatchDetails* details = nullptr) const final;
+    bool matchesSingleValue(const Value2&, MatchDetails* details = nullptr) const final;
 
     virtual void debugString(StringBuilder& debug, int indentationLevel) const;
 
@@ -351,7 +357,7 @@ public:
         return std::move(m);
     }
 
-    bool matchesSingleElement(const BSONElement&, MatchDetails* details = nullptr) const final;
+    bool matchesSingleValue(const Value2&, MatchDetails* details = nullptr) const final;
 
     virtual void debugString(StringBuilder& debug, int indentationLevel) const;
 
@@ -387,7 +393,7 @@ public:
         return std::move(e);
     }
 
-    bool matchesSingleElement(const BSONElement&, MatchDetails* details = nullptr) const final;
+    bool matchesSingleValue(const Value2&, MatchDetails* details = nullptr) const final;
 
     virtual void debugString(StringBuilder& debug, int indentationLevel) const;
 
@@ -410,7 +416,7 @@ public:
 
     virtual std::unique_ptr<MatchExpression> shallowClone() const;
 
-    bool matchesSingleElement(const BSONElement&, MatchDetails* details = nullptr) const final;
+    bool matchesSingleValue(const Value2&, MatchDetails* details = nullptr) const final;
 
     virtual void debugString(StringBuilder& debug, int indentationLevel) const;
 
@@ -431,7 +437,11 @@ public:
         return _equalitySet;
     }
 
-    bool contains(const BSONElement& e) const;
+    const std::vector<Value2>& getValueEqualities() const {
+        return _equalityValueSet;
+    }
+
+    bool contains(const Value2& e) const;
 
     const std::vector<std::unique_ptr<RegexMatchExpression>>& getRegexes() const {
         return _regexes;
@@ -452,6 +462,8 @@ public:
 private:
     ExpressionOptimizerFunc getOptimizer() const final;
 
+    void _setVectors();
+
     // Whether or not '_equalities' has a jstNULL element in it.
     bool _hasNull = false;
 
@@ -462,14 +474,14 @@ private:
     const CollatorInterface* _collator = nullptr;
 
     // Comparator used to compare elements. By default, simple binary comparison will be used.
-    BSONElementComparator _eltCmp;
+    Value2Comparator _eltCmp;
 
     // Original container of equality elements, including duplicates. Needed for re-computing
     // '_equalitySet' in case '_collator' changes after elements have been added.
     //
     // We keep the equalities in sorted order according to the current BSON element comparator. This
     // enables a fast-path to avoid re-sorting if the expression is serialized and re-parsed.
-    std::vector<BSONElement> _originalEqualityVector;
+    std::vector<std::pair<BSONElement, Value2>> _originalEqualityVector;
 
     // Deduped set of equality elements associated with this expression. Kept in sorted order to
     // support std::binary_search. Because we need to sort the elements anyway for things like index
@@ -478,6 +490,7 @@ private:
     // TODO It may be worth dynamically creating a hashset after matchesSingleElement() has been
     // called "many" times.
     std::vector<BSONElement> _equalitySet;
+    std::vector<Value2> _equalityValueSet;
 
     // Container of regex elements this object owns.
     std::vector<std::unique_ptr<RegexMatchExpression>> _regexes;
@@ -502,7 +515,7 @@ public:
                                     uint32_t bitMaskLen);
     virtual ~BitTestMatchExpression() {}
 
-    bool matchesSingleElement(const BSONElement&, MatchDetails* details = nullptr) const final;
+    bool matchesSingleValue(const Value2&, MatchDetails* details = nullptr) const final;
 
     virtual void debugString(StringBuilder& debug, int indentationLevel) const;
 

@@ -34,6 +34,7 @@
 #include "mongo/db/geo/geometry_container.h"
 #include "mongo/db/matcher/expression.h"
 #include "mongo/db/matcher/expression_leaf.h"
+#include "mongo/db/pipeline/document_comparator2.h"
 
 namespace mongo {
 
@@ -85,7 +86,7 @@ public:
 
     virtual ~GeoMatchExpression() {}
 
-    bool matchesSingleElement(const BSONElement&, MatchDetails* details = nullptr) const final;
+    bool matchesSingleValue(const Value2&, MatchDetails* details = nullptr) const final;
 
     virtual void debugString(StringBuilder& debug, int indentationLevel = 0) const;
 
@@ -114,6 +115,8 @@ private:
 
     // The original geo specification provided by the user.
     BSONObj _rawObj;
+    Document2 _doc;
+    DocumentComparator2 _comparator;
 
     // Share ownership of our query with all of our clones
     std::shared_ptr<const GeoExpression> _query;
@@ -177,7 +180,7 @@ public:
      * Stub implementation that should never be called, since geoNear execution requires an
      * appropriate geo index.
      */
-    bool matchesSingleElement(const BSONElement&, MatchDetails* details = nullptr) const final;
+    bool matchesSingleValue(const Value2&, MatchDetails* details = nullptr) const final;
 
     virtual void debugString(StringBuilder& debug, int indentationLevel = 0) const;
 
@@ -198,6 +201,8 @@ private:
 
     // The original geo specification provided by the user.
     BSONObj _rawObj;
+    Document2 _doc;
+    DocumentComparator2 _comparator;
 
     // Share ownership of our query with all of our clones
     std::shared_ptr<const GeoNearExpression> _query;

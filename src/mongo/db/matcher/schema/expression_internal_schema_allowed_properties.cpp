@@ -90,36 +90,39 @@ bool InternalSchemaAllowedPropertiesMatchExpression::equivalent(const MatchExpre
 
 bool InternalSchemaAllowedPropertiesMatchExpression::matches(const MatchableDocument* doc,
                                                              MatchDetails* details) const {
-    return _matchesBSONObj(doc->toBSON());
+    return _matchesDocument(doc->toDocument());
 }
 
-bool InternalSchemaAllowedPropertiesMatchExpression::matchesSingleElement(const BSONElement& elem,
-                                                                          MatchDetails*) const {
-    if (elem.type() != BSONType::Object) {
+bool InternalSchemaAllowedPropertiesMatchExpression::matchesSingleValue(const Value2& elem,
+                                                                        MatchDetails*) const {
+    if (elem.getType() != BSONType::Object) {
         return false;
     }
 
-    return _matchesBSONObj(elem.embeddedObject());
+    return _matchesDocument(elem.getDocument());
 }
 
-bool InternalSchemaAllowedPropertiesMatchExpression::_matchesBSONObj(const BSONObj& obj) const {
-    for (auto&& property : obj) {
+bool InternalSchemaAllowedPropertiesMatchExpression::_matchesDocument(const Document2& obj) const {
+    Field2Iterator i(obj);
+    while (i.more()) {
+        auto pair = i.next();
+        std::string fst(pair.first);
+        pcrecpp::StringPiece data(fst);
         bool checkOtherwise = true;
         for (auto&& constraint : _patternProperties) {
-            if (constraint.first.regex->PartialMatch(property.fieldName())) {
+            if (constraint.first.regex->PartialMatch(data)) {
                 checkOtherwise = false;
-                if (!constraint.second->matchesBSONElement(property)) {
+                if (!constraint.second->matchesValue(pair.second)) {
                     return false;
                 }
             }
         }
 
-        if (checkOtherwise &&
-            _properties.find(property.fieldNameStringData()) != _properties.end()) {
+        if (checkOtherwise && _properties.find(pair.first) != _properties.end()) {
             checkOtherwise = false;
         }
 
-        if (checkOtherwise && !_otherwise->matchesBSONElement(property)) {
+        if (checkOtherwise && !_otherwise->matchesValue(pair.second)) {
             return false;
         }
     }

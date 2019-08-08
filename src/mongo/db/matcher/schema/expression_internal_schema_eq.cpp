@@ -44,19 +44,20 @@ InternalSchemaEqMatchExpression::InternalSchemaEqMatchExpression(StringData path
                           path,
                           ElementPath::LeafArrayBehavior::kNoTraversal,
                           ElementPath::NonLeafArrayBehavior::kTraverse),
-      _rhsElem(rhs) {
-    invariant(_rhsElem);
+      _rhsElem(Value2(rhs)),
+      _rhsObj(rhs) {
+    invariant(!_rhsElem.missing());
 }
 
-bool InternalSchemaEqMatchExpression::matchesSingleElement(const BSONElement& elem,
-                                                           MatchDetails* details) const {
+bool InternalSchemaEqMatchExpression::matchesSingleValue(const Value2& elem,
+                                                         MatchDetails* details) const {
     return _eltCmp.evaluate(_rhsElem == elem);
 }
 
 void InternalSchemaEqMatchExpression::debugString(StringBuilder& debug,
                                                   int indentationLevel) const {
     _debugAddSpace(debug, indentationLevel);
-    debug << path() << " " << kName << " " << _rhsElem.toString(false);
+    debug << path() << " " << kName << " " << _rhsObj;
 
     auto td = getTag();
     if (td) {
@@ -69,7 +70,7 @@ void InternalSchemaEqMatchExpression::debugString(StringBuilder& debug,
 
 BSONObj InternalSchemaEqMatchExpression::getSerializedRightHandSide() const {
     BSONObjBuilder eqObj;
-    eqObj.appendAs(_rhsElem, kName);
+    eqObj.appendAs(_rhsObj, kName);
     return eqObj.obj();
 }
 
@@ -83,7 +84,7 @@ bool InternalSchemaEqMatchExpression::equivalent(const MatchExpression* other) c
 }
 
 std::unique_ptr<MatchExpression> InternalSchemaEqMatchExpression::shallowClone() const {
-    auto clone = std::make_unique<InternalSchemaEqMatchExpression>(path(), _rhsElem);
+    auto clone = std::make_unique<InternalSchemaEqMatchExpression>(path(), _rhsObj);
     if (getTag()) {
         clone->setTag(getTag()->clone());
     }

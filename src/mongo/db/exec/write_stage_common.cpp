@@ -61,7 +61,7 @@ bool ensureStillMatches(const Collection* collection,
         }
 
         // Make sure the re-fetched doc still matches the predicate.
-        if (cq && !cq->root()->matchesBSON(member->obj.value(), nullptr)) {
+        if (cq && !cq->root()->matchesDocument(Document2(member->obj.value()), nullptr)) {
             // No longer matches.
             return false;
         }

@@ -33,11 +33,13 @@
 #include <memory>
 
 #include "mongo/base/status.h"
-#include "mongo/bson/bsonobj.h"
+// #include "mongo/bson/bsonobj.h"
 #include "mongo/bson/bsonobjbuilder.h"
 #include "mongo/db/matcher/match_details.h"
 #include "mongo/db/matcher/matchable.h"
 #include "mongo/db/pipeline/dependencies.h"
+#include "mongo/db/pipeline/document2.h"
+#include "mongo/db/pipeline/value2.h"
 #include "mongo/util/fail_point_service.h"
 
 namespace mongo {
@@ -224,7 +226,11 @@ public:
 
     virtual bool matches(const MatchableDocument* doc, MatchDetails* details = nullptr) const = 0;
 
-    virtual bool matchesBSON(const BSONObj& doc, MatchDetails* details = nullptr) const;
+    virtual bool matchesDocument(const BSONObj& doc, MatchDetails* details = nullptr) const {
+        return matchesDocument(Document2(doc), details);
+    }
+
+    virtual bool matchesDocument(const Document2& doc, MatchDetails* details = nullptr) const;
 
     /**
      * Determines if 'elem' would satisfy the predicate if wrapped with the top-level field name of
@@ -233,14 +239,13 @@ public:
      * obj["a"]["0"] because it performs the match as if the element at "a.0" were the BSONObj {i:
      * 5}.
      */
-    virtual bool matchesBSONElement(BSONElement elem, MatchDetails* details = nullptr) const;
+    virtual bool matchesValue(Value2 elem, MatchDetails* details = nullptr) const;
 
     /**
      * Determines if the element satisfies the tree-predicate.
      * Not valid for all expressions (e.g. $where); in those cases, returns false.
      */
-    virtual bool matchesSingleElement(const BSONElement& e,
-                                      MatchDetails* details = nullptr) const = 0;
+    virtual bool matchesSingleValue(const Value2& e, MatchDetails* details = nullptr) const = 0;
 
     //
     // Tagging mechanism: Hang data off of the tree for retrieval later.

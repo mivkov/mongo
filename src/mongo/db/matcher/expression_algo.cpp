@@ -68,30 +68,30 @@ bool _isSubsetOf(const ComparisonMatchExpression* lhs, const ComparisonMatchExpr
         return false;
     }
 
-    const BSONElement lhsData = lhs->getData();
-    const BSONElement rhsData = rhs->getData();
+    const Value2 lhsData = lhs->getValue();
+    const Value2 rhsData = rhs->getValue();
 
-    if (lhsData.canonicalType() != rhsData.canonicalType()) {
+    if (canonicalizeBSONType(lhsData.getType()) != canonicalizeBSONType(rhsData.getType())) {
         return false;
     }
 
     // Special case the handling for NaN values: NaN compares equal only to itself.
-    if (std::isnan(lhsData.numberDouble()) || std::isnan(rhsData.numberDouble())) {
+    if (lhsData.numeric() && rhsData.numeric() &&
+        (std::isnan(lhsData.coerceToDouble()) || std::isnan(rhsData.coerceToDouble()))) {
         if (supportsEquality(lhs) && supportsEquality(rhs)) {
-            return std::isnan(lhsData.numberDouble()) && std::isnan(rhsData.numberDouble());
+            return std::isnan(lhsData.coerceToDouble()) && std::isnan(rhsData.coerceToDouble());
         }
         return false;
     }
 
     if (!CollatorInterface::collatorsMatch(lhs->getCollator(), rhs->getCollator()) &&
-        CollationIndexKey::isCollatableType(lhsData.type())) {
+        CollationIndexKey::isCollatableType(lhsData.getType())) {
         return false;
     }
 
     // Either collator may be used by compareElements() here, since either the collators are
     // the same or lhsData does not contain string comparison.
-    int cmp = BSONElement::compareElements(
-        lhsData, rhsData, BSONElement::ComparisonRules::kConsiderFieldName, rhs->getCollator());
+    int cmp = Value2::compare(lhsData, rhsData, rhs->getCollator());
 
     // Check whether the two expressions are equivalent.
     if (lhs->matchType() == rhs->matchType() && cmp == 0) {
@@ -150,7 +150,7 @@ bool _isSubsetOf(const MatchExpression* lhs, const ComparisonMatchExpression* rh
         if (!ime->getRegexes().empty()) {
             return false;
         }
-        for (BSONElement elem : ime->getEqualities()) {
+        for (const BSONElement& elem : ime->getEqualities()) {
             // Each element in the $in-array represents an equality predicate.
             EqualityMatchExpression equality(lhs->path(), elem);
             equality.setCollator(ime->getCollator());
@@ -179,7 +179,7 @@ bool _isSubsetOf(const MatchExpression* lhs, const ExistsMatchExpression* rhs) {
         const ComparisonMatchExpression* cme = static_cast<const ComparisonMatchExpression*>(lhs);
         // The CompareMatchExpression constructor prohibits creating a match expression with EOO or
         // Undefined types, so only need to ensure that the value is not of type jstNULL.
-        return cme->getData().type() != jstNULL;
+        return cme->getValue().getType() != jstNULL;
     }
 
     switch (lhs->matchType()) {
@@ -207,7 +207,7 @@ bool _isSubsetOf(const MatchExpression* lhs, const ExistsMatchExpression* rhs) {
                 case MatchExpression::EQ: {
                     const ComparisonMatchExpression* cme =
                         static_cast<const ComparisonMatchExpression*>(lhs->getChild(0));
-                    return cme->getData().type() == jstNULL;
+                    return cme->getValue().getType() == jstNULL;
                 }
                 case MatchExpression::MATCH_IN: {
                     const InMatchExpression* ime =

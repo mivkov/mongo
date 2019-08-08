@@ -130,7 +130,7 @@ BSONElement extractKeyElementFromMatchable(const MatchableDocument& matchable, S
     if (!matchIt->more())
         return BSONElement();
 
-    BSONElement matchEl = matchIt->next().element();
+    BSONElement matchEl = BSON("" << matchIt->next().element()).firstElement();
     // We shouldn't have more than one element - we don't expand arrays
     dassert(!matchIt->more());
 

@@ -53,7 +53,7 @@ bool Matcher::matches(const BSONObj& doc, MatchDetails* details) const {
     if (!_expression)
         return true;
 
-    return _expression->matchesBSON(doc, details);
+    return _expression->matchesDocument(doc, details);
 }
 
 }  // namespace mongo

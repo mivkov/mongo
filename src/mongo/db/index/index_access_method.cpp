@@ -361,7 +361,7 @@ void AbstractIndexAccessMethod::prepareUpdate(OperationContext* opCtx,
                                               const InsertDeleteOptions& options,
                                               UpdateTicket* ticket) {
     const MatchExpression* indexFilter = index->getFilterExpression();
-    if (!indexFilter || indexFilter->matchesBSON(from)) {
+    if (!indexFilter || indexFilter->matchesDocument(Document2(from))) {
         // Override key constraints when generating keys for removal. This only applies to keys
         // that do not apply to a partial filter expression.
         const auto getKeysMode = index->isHybridBuilding()
@@ -374,7 +374,7 @@ void AbstractIndexAccessMethod::prepareUpdate(OperationContext* opCtx,
         getKeys(from, getKeysMode, &ticket->oldKeys, nullptr, nullptr);
     }
 
-    if (!indexFilter || indexFilter->matchesBSON(to)) {
+    if (!indexFilter || indexFilter->matchesDocument(Document2(to))) {
         getKeys(to,
                 options.getKeysMode,
                 &ticket->newKeys,
@@ -692,7 +692,7 @@ void AbstractIndexAccessMethod::getKeys(const BSONObj& obj,
         // indexed), do not supress the error.
         const MatchExpression* filter = _btreeState->getFilterExpression();
         if (mode == GetKeysMode::kRelaxConstraintsUnfiltered && filter &&
-            filter->matchesBSON(obj)) {
+            filter->matchesDocument(Document2(obj))) {
             throw;
         }
 

@@ -361,10 +361,33 @@ env.Library(
 )
 
 env.CppUnitTest(
+    target='key_string_test',
+    source=['key_string_test.cpp',],
+    LIBDEPS=[
+        '$BUILD_DIR/mongo/base',
+        '$BUILD_DIR/mongo/db/auth/authmocks',
+        '$BUILD_DIR/mongo/db/concurrency/flow_control_ticketholder',
+        '$BUILD_DIR/mongo/db/dbhelpers',
+        '$BUILD_DIR/mongo/db/namespace_string',
+        '$BUILD_DIR/mongo/db/repl/replmocks',
+        '$BUILD_DIR/mongo/db/repl/topology_coordinator',
+        '$BUILD_DIR/mongo/db/service_context_d_test_fixture',
+        '$BUILD_DIR/mongo/db/storage/ephemeral_for_test/storage_ephemeral_for_test_core',
+        '$BUILD_DIR/mongo/executor/network_interface_factory',
+        '$BUILD_DIR/mongo/executor/network_interface_mock',
+        'flow_control',
+        'flow_control_parameters',
+        'key_string',
+        'storage_engine_lock_file',
+        'storage_engine_metadata',
+        'storage_repair_observer',
+    ],
+)
+
+env.CppUnitTest(
     target='db_storage_test',
     source=[
         'flow_control_test.cpp',
-        'key_string_test.cpp',
         'storage_engine_lock_file_test.cpp',
         'storage_engine_metadata_test.cpp',
         'storage_repair_observer_test.cpp',

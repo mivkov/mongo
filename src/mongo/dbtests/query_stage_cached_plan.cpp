@@ -135,7 +135,7 @@ public:
 
             if (state == PlanStage::ADVANCED) {
                 WorkingSetMember* member = ws.get(id);
-                ASSERT(cq->root()->matchesBSON(member->obj.value()));
+                ASSERT(cq->root()->matchesDocument(member->obj.value()));
                 numResults++;
             }
         }

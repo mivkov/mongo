@@ -300,7 +300,7 @@ Status CollectionImpl::checkValidation(OperationContext* opCtx, const BSONObj& d
     if (documentValidationDisabled(opCtx))
         return Status::OK();
 
-    if (_validator->matchesBSON(document))
+    if (_validator->matchesDocument(Document2(document)))
         return Status::OK();
 
     if (_validationAction == ValidationAction::WARN) {

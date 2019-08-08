@@ -8,6 +8,7 @@ coll.drop();
 coll.insert({p: [1112, 3473], t: [{k: 'a', v: 'b'}, {k: 'c', v: 'd'}]});
 coll.ensureIndex({p: '2d', 't.k': 1}, {min: 0, max: 10000});
 
+assert.eq(1, coll.find({'t.k': 'a'}).count(), "tt");
 // Succeeds, since on direct lookup should not use the index
 assert(1 == coll.find({p: [1112, 3473], 't.k': 'a'}).count(), "A");
 // Succeeds and uses the geo index

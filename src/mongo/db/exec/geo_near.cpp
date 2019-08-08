@@ -500,12 +500,12 @@ public:
         out->append("TwoDPtInAnnulusExpression", true);
     }
 
-    bool matchesSingleElement(const BSONElement& e, MatchDetails* details = nullptr) const final {
-        if (!e.isABSONObj())
+    bool matchesSingleValue(const Value2& e, MatchDetails* details = nullptr) const final {
+        if (e.getType() != BSONType::Object && e.getType() != BSONType::Array)
             return false;
 
         PointWithCRS point;
-        if (!GeoParser::parseStoredPoint(e, &point).isOK())
+        if (!GeoParser::parseStoredPoint(BSON("" << e).firstElement(), &point).isOK())  // BAD!!!
             return false;
 
         return _annulus.contains(point.oldPoint);

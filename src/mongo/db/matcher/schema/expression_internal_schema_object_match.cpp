@@ -43,12 +43,12 @@ InternalSchemaObjectMatchExpression::InternalSchemaObjectMatchExpression(
                           ElementPath::NonLeafArrayBehavior::kTraverse),
       _sub(std::move(expr)) {}
 
-bool InternalSchemaObjectMatchExpression::matchesSingleElement(const BSONElement& elem,
-                                                               MatchDetails* details) const {
-    if (elem.type() != BSONType::Object) {
+bool InternalSchemaObjectMatchExpression::matchesSingleValue(const Value2& elem,
+                                                             MatchDetails* details) const {
+    if (elem.getType() != BSONType::Object) {
         return false;
     }
-    return _sub->matchesBSON(elem.Obj());
+    return _sub->matchesDocument(elem.getDocument());
 }
 
 void InternalSchemaObjectMatchExpression::debugString(StringBuilder& debug,

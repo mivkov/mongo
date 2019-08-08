@@ -33,6 +33,8 @@
 #include "mongo/bson/bsonobjbuilder.h"
 #include "mongo/db/field_ref.h"
 #include "mongo/db/matcher/path.h"
+#include "mongo/db/pipeline/document2.h"
+#include "mongo/db/pipeline/value2.h"
 
 namespace mongo {
 
@@ -43,6 +45,8 @@ public:
     virtual ~MatchableDocument() {}
 
     virtual BSONObj toBSON() const = 0;
+
+    virtual Document2 toDocument() const = 0;
 
     /**
      * The neewly returned ElementIterator is allowed to keep a pointer to path.
@@ -83,6 +87,10 @@ public:
         return _obj;
     }
 
+    virtual Document2 toDocument() const {
+        return Document2(_obj);
+    }
+
     virtual ElementIterator* allocateIterator(const ElementPath* path) const {
         if (_iteratorUsed)
             return new BSONElementIterator(path, _obj);
@@ -119,6 +127,10 @@ public:
         return BSON("" << _elem);
     }
 
+    Document2 toDocument() const override {
+        return DOC("" << _elem);
+    }
+
     /**
      * Creates an iterator over '_elem' as if '_elem' were wrapped in the first field of 'path'.
      * 'path' must have at least one field.
@@ -146,6 +158,60 @@ public:
 private:
     BSONElement _elem;
     mutable BSONElementIterator _iterator;
+    mutable bool _iteratorUsed;
+};
+
+class DocumentValueMatchableDocument : public MatchableDocument {
+public:
+    DocumentValueMatchableDocument(const Document2& doc) : _doc(doc), _iteratorUsed(false) {}
+
+    DocumentValueMatchableDocument(const Value2& val) : _val(val), _iteratorUsed(false) {}
+
+    BSONObj toBSON() const override {
+        if (_doc) {
+            return _doc.get().toBson();
+        } else {
+            return BSON("" << _val.get());
+        }
+    }
+
+    Document2 toDocument() const override {
+        if (_doc) {
+            return _doc.get();
+        } else {
+            return Document2(BSON("" << _val.get()));
+        }
+    }
+
+    ElementIterator* allocateIterator(const ElementPath* path) const override {
+        if (_iteratorUsed) {
+            if (_doc) {
+                return new DocumentValueIterator(path, _doc.get());
+            } else {
+                return new DocumentValueIterator(path, 1, _val.get());
+            }
+        }
+        _iteratorUsed = true;
+        if (_doc) {
+            _iterator.reset(path, _doc.get());
+        } else {
+            _iterator.reset(path, 1, _val.get());
+        }
+        return &_iterator;
+    }
+
+    void releaseIterator(ElementIterator* iterator) const override {
+        if (iterator == &_iterator) {
+            _iteratorUsed = false;
+        } else {
+            delete iterator;
+        }
+    }
+
+private:
+    boost::optional<Document2> _doc;
+    boost::optional<Value2> _val;
+    mutable DocumentValueIterator _iterator;
     mutable bool _iteratorUsed;
 };
 }

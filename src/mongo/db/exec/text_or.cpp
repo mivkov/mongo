@@ -260,7 +260,7 @@ PlanStage::StageState TextOrStage::addTerm(WorkingSetID wsid, WorkingSetID* out)
         // We haven't seen this RecordId before.
         invariant(textRecordData->score == 0);
 
-        if (!Filter::passes(newKeyData.keyData, newKeyData.indexKeyPattern, _filter)) {
+        if (!Filter::passes(Document2(newKeyData.keyData), newKeyData.indexKeyPattern, _filter)) {
             _ws->free(wsid);
             textRecordData->score = -1;
             return NEED_TIME;

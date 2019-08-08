@@ -223,6 +223,11 @@ public:
         BSONElement exprElement,
         const VariablesParseState& vps);
 
+    static boost::intrusive_ptr<Expression> parseValueOperand(
+        const boost::intrusive_ptr<ExpressionContext>& expCtx,
+        Value2 exprElement,
+        const VariablesParseState& vps);
+
     /*
       Produce a field path std::string with the field prefix removed.
 

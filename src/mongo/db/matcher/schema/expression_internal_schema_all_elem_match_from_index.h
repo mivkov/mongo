@@ -48,13 +48,13 @@ public:
 
     std::unique_ptr<MatchExpression> shallowClone() const final;
 
-    bool matchesArray(const BSONObj& array, MatchDetails* details) const final {
-        auto iter = BSONObjIterator(array);
+    bool matchesArray(const Document2& array, MatchDetails* details) const final {
+        auto iter = Field2Iterator(array);
         for (int i = 0; iter.more() && i < _index; i++) {
             iter.next();
         }
         while (iter.more()) {
-            if (!_expression->matchesBSONElement(iter.next(), details)) {
+            if (!_expression->matchesValue(iter.next().second, details)) {
                 return false;
             }
         }

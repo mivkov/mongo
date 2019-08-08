@@ -34,6 +34,7 @@
 #include "mongo/base/string_data.h"
 #include "mongo/bson/bsonobj.h"
 #include "mongo/db/field_ref.h"
+#include "mongo/db/pipeline/document2.h"
 
 namespace mongo {
 
@@ -119,20 +120,34 @@ public:
 
         void reset(BSONElement element, BSONElement arrayOffset);
 
+        void reset(Value2 element, BSONElement arrayOffset);
+
+        void reset(Value2 element, Value2 arrayOffset, StringData fieldName);
+
         void setArrayOffset(BSONElement e) {
-            _arrayOffset = e;
+            _arrayOffset = Value2(e);
+            _fieldName = e.fieldNameStringData();
         }
 
-        BSONElement element() const {
+        void setArrayOffset(Value2 arrayOffset, StringData fieldName) {
+            _arrayOffset = arrayOffset;
+            _fieldName = fieldName;
+        }
+
+        Value2 element() const {
             return _element;
         }
-        BSONElement arrayOffset() const {
+        Value2 arrayOffset() const {
             return _arrayOffset;
+        }
+        StringData arrayOffsetFieldName() const {
+            return _fieldName;
         }
 
     private:
-        BSONElement _element;
-        BSONElement _arrayOffset;
+        Value2 _element;
+        Value2 _arrayOffset;
+        StringData _fieldName;
     };
 
     virtual ~ElementIterator();
@@ -145,7 +160,7 @@ public:
 
 class SingleElementElementIterator : public ElementIterator {
 public:
-    explicit SingleElementElementIterator(BSONElement e) : _seen(false) {
+    explicit SingleElementElementIterator(Value2 e) : _seen(false) {
         _element.reset(e, BSONElement());
     }
 
@@ -166,15 +181,18 @@ private:
 
 class SimpleArrayElementIterator : public ElementIterator {
 public:
-    SimpleArrayElementIterator(const BSONElement& theArray, bool returnArrayLast);
+    SimpleArrayElementIterator(const Value2& theArray, bool returnArrayLast);
 
     virtual bool more();
     virtual Context next();
 
 private:
-    BSONElement _theArray;
+    Value2 _theArray;
+
+    std::vector<Value2> _array;
     bool _returnArrayLast;
-    BSONObjIterator _iterator;
+    std::vector<Value2>::iterator _iterator;
+    std::vector<Value2>::iterator _end;
 };
 
 class BSONElementIterator : public ElementIterator {
@@ -253,6 +271,95 @@ private:
         BSONElement _theArray;
         BSONElement _current;
         std::unique_ptr<BSONObjIterator> _iterator;
+    };
+
+    ArrayIterationState _arrayIterationState;
+
+    std::unique_ptr<ElementIterator> _subCursor;
+    std::unique_ptr<ElementPath> _subCursorPath;
+};
+
+class DocumentValueIterator : public ElementIterator {
+public:
+    DocumentValueIterator();
+
+    /**
+     * Constructs an iterator over 'elementToIterate', where the desired element(s) is/are at the
+     * end of the suffix of 'path' starting at 'suffixIndex'. For example, constructing a
+     * BSONElementIterator with path="a.b.c", suffixIndex=1, and 'elementToIterate' as the
+     * subdocument located at 'a' within the object {a: {b: [{c: 1}, {c: 2}]}} would iterate over
+     * the elements of {b: [{c: 1}, {c: 2}]} at the end of the path 'b.c'. 'elementToIterate' does
+     * not need to be of type Object, so it would also be valid to construct a BSONElementIterator
+     * with path="a.b" and 'elementToIterate' as the array within 'a.b'.
+     */
+    DocumentValueIterator(const ElementPath* path, size_t suffixIndex, Value2 elementToIterate);
+
+    /**
+     * Constructs an iterator over 'objectToIterate', where the desired element(s) is/are at the end
+     * of 'path'.
+     */
+    DocumentValueIterator(const ElementPath* path, const Document2& objectToIterate);
+
+    virtual ~DocumentValueIterator();
+
+    void reset(const ElementPath* path, size_t suffixIndex, Value2 elementToIterate);
+    void reset(const ElementPath* path, const Document2& objectToIterate);
+
+    bool more();
+    Context next();
+
+private:
+    /**
+     * Helper for more().  Recurs on _subCursor (which traverses the remainder of a path through
+     * subdocuments of an array).
+     */
+    bool subCursorHasMore();
+
+    /**
+     * Sets _traversalStart and _traversalStartIndex by traversing 'elementToIterate' along the
+     * suffix of '_path' starting at 'suffixIndex'.
+     */
+    void _setTraversalStart(size_t suffixIndex, Value2 elementToIterate);
+
+    const ElementPath* _path;
+
+    // The element where we begin our iteration. This is either:
+    // -- The element at the end of _path.
+    // -- The first array element encountered along _path.
+    // -- EOO, if _path does not exist in the object/element we are exploring.
+    Value2 _traversalStart;
+
+    // This index of _traversalStart in _path, or 0 if _traversalStart is EOO.
+    size_t _traversalStartIndex;
+
+    enum State { BEGIN, IN_ARRAY, DONE } _state;
+    Context _next;
+
+    struct ArrayIterationState {
+        void reset(const FieldRef& ref, int start);
+        void startIterator(Value2 theArray);
+
+        bool more();
+        Value2 next();
+
+        bool isArrayOffsetMatch(StringData fieldName) const;
+        bool nextEntireRest() const {
+            return nextPieceOfPath.size() == restOfPath.size();
+        }
+
+        std::string restOfPath;
+        bool hasMore;
+        StringData nextPieceOfPath;
+        bool nextPieceOfPathIsNumber;
+
+        Value2 _theArray;
+
+        std::vector<Value2> _array;
+        Value2 _current;
+        size_t _index;
+        std::vector<Value2>::iterator _iterator;
+
+        std::vector<Value2>::iterator _end;
     };
 
     ArrayIterationState _arrayIterationState;

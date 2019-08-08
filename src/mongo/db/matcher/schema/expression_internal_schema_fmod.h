@@ -50,7 +50,7 @@ public:
         return std::move(m);
     }
 
-    bool matchesSingleElement(const BSONElement& e, MatchDetails* details = nullptr) const final;
+    bool matchesSingleValue(const Value2& e, MatchDetails* details = nullptr) const final;
 
     void debugString(StringBuilder& debug, int indentationLevel) const final;
 

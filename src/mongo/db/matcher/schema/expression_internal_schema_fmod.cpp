@@ -48,13 +48,13 @@ InternalSchemaFmodMatchExpression::InternalSchemaFmodMatchExpression(StringData 
     uassert(ErrorCodes::BadValue, "divisor cannot be infinite", !divisor.isInfinite());
 }
 
-bool InternalSchemaFmodMatchExpression::matchesSingleElement(const BSONElement& e,
-                                                             MatchDetails* details) const {
-    if (!e.isNumber()) {
+bool InternalSchemaFmodMatchExpression::matchesSingleValue(const Value2& e,
+                                                           MatchDetails* details) const {
+    if (!e.numeric()) {
         return false;
     }
     std::uint32_t flags = Decimal128::SignalingFlag::kNoFlag;
-    Decimal128 result = e.numberDecimal().modulo(_divisor, &flags);
+    Decimal128 result = e.coerceToDecimal().modulo(_divisor, &flags);
     if (flags == Decimal128::SignalingFlag::kNoFlag) {
         return result.isEqual(_remainder);
     }

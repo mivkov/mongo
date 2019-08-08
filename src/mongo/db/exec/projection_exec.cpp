@@ -228,7 +228,7 @@ StatusWith<BSONObj> ProjectionExec::project(const BSONObj& in,
     if (projectRequiresQueryExpression()) {
         matchDetails.requestElemMatchKey();
         invariant(nullptr != _queryExpression);
-        invariant(_queryExpression->matchesBSON(in, &matchDetails));
+        invariant(_queryExpression->matchesDocument(Document2(in), &matchDetails));
     }
 
     Status projStatus = projectHelper(in, &bob, &matchDetails);
@@ -365,7 +365,7 @@ Status ProjectionExec::projectHelper(const BSONObj& in,
         MatchDetails arrayDetails;
         arrayDetails.requestElemMatchKey();
 
-        if (matcher->second->matchesBSON(in, &arrayDetails)) {
+        if (matcher->second->matchesDocument(Document2(in), &arrayDetails)) {
             FieldMap::const_iterator fieldIt = _fields.find(elt.fieldName());
             if (_fields.end() == fieldIt) {
                 return Status(ErrorCodes::BadValue,

@@ -38,27 +38,26 @@ namespace mongo {
 
 constexpr StringData InternalExprEqMatchExpression::kName;
 
-bool InternalExprEqMatchExpression::matchesSingleElement(const BSONElement& elem,
-                                                         MatchDetails* details) const {
+bool InternalExprEqMatchExpression::matchesSingleValue(const Value2& elem,
+                                                       MatchDetails* details) const {
     // We use NonLeafArrayBehavior::kMatchSubpath traversal in InternalExprEqMatchExpression. This
     // means matchesSinglElement() will be called when an array is found anywhere along the patch we
     // are matching against. When this occurs, we return 'true' and depend on the corresponding
     // ExprMatchExpression node to filter properly.
-    if (elem.type() == BSONType::Array) {
+    if (elem.getType() == BSONType::Array) {
         return true;
     }
 
-    if (elem.canonicalType() != _rhs.canonicalType()) {
+    if (canonicalizeBSONType(elem.getType()) != canonicalizeBSONType(_rhs.getType())) {
         return false;
     }
 
-    auto comp = BSONElement::compareElements(
-        elem, _rhs, BSONElement::ComparisonRules::kConsiderFieldName, _collator);
+    auto comp = Value2::compare(elem, _rhs, _collator);
     return comp == 0;
 }
 
 std::unique_ptr<MatchExpression> InternalExprEqMatchExpression::shallowClone() const {
-    auto clone = std::make_unique<InternalExprEqMatchExpression>(path(), _rhs);
+    auto clone = std::make_unique<InternalExprEqMatchExpression>(path(), _rhsbson);
     clone->setCollator(_collator);
     if (getTag()) {
         clone->setTag(getTag()->clone());

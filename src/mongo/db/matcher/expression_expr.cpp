@@ -52,7 +52,7 @@ bool ExprMatchExpression::matches(const MatchableDocument* doc, MatchDetails* de
         return false;
     }
 
-    Document document(doc->toBSON());
+    Document document = Document(doc->toBSON());
 
     // 'Variables' is not thread safe, and ExprMatchExpression may be used in a validator which
     // processes documents from multiple threads simultaneously. Hence we make a copy of the

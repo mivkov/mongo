@@ -55,8 +55,10 @@ ComparisonMatchExpressionBase::ComparisonMatchExpressionBase(
     const BSONElement& rhs,
     ElementPath::LeafArrayBehavior leafArrBehavior,
     ElementPath::NonLeafArrayBehavior nonLeafArrBehavior)
-    : LeafMatchExpression(type, path, leafArrBehavior, nonLeafArrBehavior), _rhs(rhs) {
-    invariant(_rhs);
+    : LeafMatchExpression(type, path, leafArrBehavior, nonLeafArrBehavior),
+      _rhsbson(rhs),
+      _rhs(Value2(rhs)) {
+    invariant(!_rhs.missing());
 }
 
 bool ComparisonMatchExpressionBase::equivalent(const MatchExpression* other) const {
@@ -69,14 +71,14 @@ bool ComparisonMatchExpressionBase::equivalent(const MatchExpression* other) con
     }
 
     const StringData::ComparatorInterface* stringComparator = nullptr;
-    BSONElementComparator eltCmp(BSONElementComparator::FieldNamesMode::kIgnore, stringComparator);
+    Value2Comparator eltCmp(stringComparator);
     return path() == realOther->path() && eltCmp.evaluate(_rhs == realOther->_rhs);
 }
 
 void ComparisonMatchExpressionBase::debugString(StringBuilder& debug, int indentationLevel) const {
     _debugAddSpace(debug, indentationLevel);
     debug << path() << " " << name();
-    debug << " " << _rhs.toString(false);
+    debug << " " << _rhs.toString();
 
     MatchExpression::TagData* td = getTag();
     if (td) {
@@ -100,7 +102,7 @@ ComparisonMatchExpression::ComparisonMatchExpression(MatchType type,
                                     ElementPath::LeafArrayBehavior::kTraverse,
                                     ElementPath::NonLeafArrayBehavior::kTraverse) {
     uassert(
-        ErrorCodes::BadValue, "cannot compare to undefined", _rhs.type() != BSONType::Undefined);
+        ErrorCodes::BadValue, "cannot compare to undefined", _rhs.getType() != BSONType::Undefined);
 
     switch (matchType()) {
         case LT:
@@ -114,18 +116,19 @@ ComparisonMatchExpression::ComparisonMatchExpression(MatchType type,
     }
 }
 
-bool ComparisonMatchExpression::matchesSingleElement(const BSONElement& e,
-                                                     MatchDetails* details) const {
-    if (e.canonicalType() != _rhs.canonicalType()) {
-        // We can't call 'compareElements' on elements of different canonical types.  Usually
+bool ComparisonMatchExpression::matchesSingleValue(const Value2& e, MatchDetails* details) const {
+    int eCanonicalType = canonicalizeBSONType(e.getType());
+    int rhsCanonicalType = canonicalizeBSONType(_rhs.getType());
+    if (eCanonicalType != rhsCanonicalType) {
+        // We can't call 'compareElements' on elements of different canonical types. Usually
         // elements with different canonical types should never match any comparison, but there are
         // a few exceptions, handled here.
 
         // jstNULL and undefined are treated the same
-        if (e.canonicalType() + _rhs.canonicalType() == 5) {
+        if (eCanonicalType + rhsCanonicalType == 5) {
             return matchType() == EQ || matchType() == LTE || matchType() == GTE;
         }
-        if (_rhs.type() == MaxKey || _rhs.type() == MinKey) {
+        if (_rhs.getType() == MaxKey || _rhs.getType() == MinKey) {
             switch (matchType()) {
                 // LT and LTE need no distinction here because the two elements that we are
                 // comparing do not even have the same canonical type and are thus not equal
@@ -134,12 +137,12 @@ bool ComparisonMatchExpression::matchesSingleElement(const BSONElement& e,
                 // between GTE and GT.
                 case LT:
                 case LTE:
-                    return _rhs.type() == MaxKey;
+                    return _rhs.getType() == MaxKey;
                 case EQ:
                     return false;
                 case GT:
                 case GTE:
-                    return _rhs.type() == MinKey;
+                    return _rhs.getType() == MinKey;
                 default:
                     // This is a comparison match expression, so it must be either
                     // a $lt, $lte, $gt, $gte, or equality expression.
@@ -151,8 +154,9 @@ bool ComparisonMatchExpression::matchesSingleElement(const BSONElement& e,
 
     // Special case handling for NaN. NaN is equal to NaN but
     // otherwise always compares to false.
-    if (std::isnan(e.numberDouble()) || std::isnan(_rhs.numberDouble())) {
-        bool bothNaN = std::isnan(e.numberDouble()) && std::isnan(_rhs.numberDouble());
+    if (e.numeric() && _rhs.numeric() &&
+        (std::isnan(e.coerceToDouble()) || std::isnan(_rhs.coerceToDouble()))) {
+        bool bothNaN = std::isnan(e.coerceToDouble()) && std::isnan(_rhs.coerceToDouble());
         switch (matchType()) {
             case LT:
                 return false;
@@ -171,8 +175,7 @@ bool ComparisonMatchExpression::matchesSingleElement(const BSONElement& e,
         }
     }
 
-    int x = BSONElement::compareElements(
-        e, _rhs, BSONElement::ComparisonRules::kConsiderFieldName, _collator);
+    int x = Value2::compare(e, _rhs, _collator);
     switch (matchType()) {
         case LT:
             return x < 0;
@@ -241,18 +244,19 @@ bool RegexMatchExpression::equivalent(const MatchExpression* other) const {
         _flags == realOther->_flags;
 }
 
-bool RegexMatchExpression::matchesSingleElement(const BSONElement& e, MatchDetails* details) const {
-    switch (e.type()) {
+bool RegexMatchExpression::matchesSingleValue(const Value2& e, MatchDetails* details) const {
+    switch (e.getType()) {
         case String:
         case Symbol: {
             // String values stored in documents can contain embedded NUL bytes. We construct a
             // pcrecpp::StringPiece instance using the full length of the string to avoid truncating
             // 'data' early.
-            pcrecpp::StringPiece data(e.valuestr(), e.valuestrsize() - 1);
+            std::string str = e.coerceToString();
+            pcrecpp::StringPiece data(str.c_str(), str.size());
             return _re->PartialMatch(data);
         }
         case RegEx:
-            return _regex == e.regex() && _flags == e.regexFlags();
+            return _regex == e.getRegex() && _flags == e.getRegexFlags();
         default:
             return false;
     }
@@ -296,10 +300,10 @@ ModMatchExpression::ModMatchExpression(StringData path, int divisor, int remaind
     uassert(ErrorCodes::BadValue, "divisor cannot be 0", divisor != 0);
 }
 
-bool ModMatchExpression::matchesSingleElement(const BSONElement& e, MatchDetails* details) const {
-    if (!e.isNumber())
+bool ModMatchExpression::matchesSingleValue(const Value2& e, MatchDetails* details) const {
+    if (!e.numeric())
         return false;
-    return e.numberLong() % _divisor == _remainder;
+    return e.coerceToLong() % _divisor == _remainder;
 }
 
 void ModMatchExpression::debugString(StringBuilder& debug, int indentationLevel) const {
@@ -331,9 +335,8 @@ bool ModMatchExpression::equivalent(const MatchExpression* other) const {
 
 ExistsMatchExpression::ExistsMatchExpression(StringData path) : LeafMatchExpression(EXISTS, path) {}
 
-bool ExistsMatchExpression::matchesSingleElement(const BSONElement& e,
-                                                 MatchDetails* details) const {
-    return !e.eoo();
+bool ExistsMatchExpression::matchesSingleValue(const Value2& e, MatchDetails* details) const {
+    return !e.missing();
 }
 
 void ExistsMatchExpression::debugString(StringBuilder& debug, int indentationLevel) const {
@@ -363,8 +366,7 @@ bool ExistsMatchExpression::equivalent(const MatchExpression* other) const {
 // ----
 
 InMatchExpression::InMatchExpression(StringData path)
-    : LeafMatchExpression(MATCH_IN, path),
-      _eltCmp(BSONElementComparator::FieldNamesMode::kIgnore, _collator) {}
+    : LeafMatchExpression(MATCH_IN, path), _eltCmp(_collator) {}
 
 std::unique_ptr<MatchExpression> InMatchExpression::shallowClone() const {
     auto next = std::make_unique<InMatchExpression>(path());
@@ -375,6 +377,7 @@ std::unique_ptr<MatchExpression> InMatchExpression::shallowClone() const {
     next->_hasNull = _hasNull;
     next->_hasEmptyArray = _hasEmptyArray;
     next->_equalitySet = _equalitySet;
+    next->_equalityValueSet = _equalityValueSet;
     next->_originalEqualityVector = _originalEqualityVector;
     for (auto&& regex : _regexes) {
         std::unique_ptr<RegexMatchExpression> clonedRegex(
@@ -384,19 +387,20 @@ std::unique_ptr<MatchExpression> InMatchExpression::shallowClone() const {
     return std::move(next);
 }
 
-bool InMatchExpression::contains(const BSONElement& e) const {
-    return std::binary_search(_equalitySet.begin(), _equalitySet.end(), e, _eltCmp.makeLessThan());
+bool InMatchExpression::contains(const Value2& e) const {
+    return std::binary_search(
+        _equalityValueSet.begin(), _equalityValueSet.end(), e, _eltCmp.getLessThan());
 }
 
-bool InMatchExpression::matchesSingleElement(const BSONElement& e, MatchDetails* details) const {
-    if (_hasNull && e.eoo()) {
+bool InMatchExpression::matchesSingleValue(const Value2& e, MatchDetails* details) const {
+    if (_hasNull && e.missing()) {
         return true;
     }
     if (contains(e)) {
         return true;
     }
     for (auto&& regex : _regexes) {
-        if (regex->matchesSingleElement(e, details)) {
+        if (regex->matchesSingleValue(e, details)) {
             return true;
         }
     }
@@ -408,7 +412,7 @@ void InMatchExpression::debugString(StringBuilder& debug, int indentationLevel) 
     debug << path() << " $in ";
     debug << "[ ";
     for (auto&& equality : _equalitySet) {
-        debug << equality.toString(false) << " ";
+        debug << equality << " ";
     }
     for (auto&& regex : _regexes) {
         regex->shortDebugString(debug);
@@ -466,36 +470,53 @@ bool InMatchExpression::equivalent(const MatchExpression* other) const {
     if (_equalitySet.size() != realOther->_equalitySet.size()) {
         return false;
     }
-    auto thisEqIt = _equalitySet.begin();
-    auto otherEqIt = realOther->_equalitySet.begin();
-    for (; thisEqIt != _equalitySet.end(); ++thisEqIt, ++otherEqIt) {
-        const bool considerFieldName = false;
-        if (thisEqIt->woCompare(*otherEqIt, considerFieldName, _collator)) {
+    auto thisEqIt = _equalityValueSet.begin();
+    auto otherEqIt = realOther->_equalityValueSet.begin();
+    for (; thisEqIt != _equalityValueSet.end(); ++thisEqIt, ++otherEqIt) {
+        if (Value2::compare(*thisEqIt, *otherEqIt, _collator)) {
             return false;
         }
     }
-    invariant(otherEqIt == realOther->_equalitySet.end());
+    invariant(otherEqIt == realOther->_equalityValueSet.end());
     return true;
+}
+
+void InMatchExpression::_setVectors() {
+    auto _cmp = [&](std::pair<BSONElement, Value2> a, std::pair<BSONElement, Value2> b) {
+        return _eltCmp.getLessThan()(a.second, b.second);
+    };
+
+    if (!std::is_sorted(_originalEqualityVector.begin(), _originalEqualityVector.end(), _cmp)) {
+        std::sort(_originalEqualityVector.begin(), _originalEqualityVector.end(), _cmp);
+    }
+
+    std::vector<std::pair<BSONElement, Value2>> equalitySets;
+    equalitySets.reserve(_originalEqualityVector.size());
+
+    std::unique_copy(_originalEqualityVector.begin(),
+                     _originalEqualityVector.end(),
+                     std::back_inserter(equalitySets),
+                     [&](std::pair<BSONElement, Value2> a, std::pair<BSONElement, Value2> b) {
+                         return _eltCmp.getEqualTo()(a.second, b.second);
+                     });
+
+    _equalitySet.clear();
+    _equalitySet.reserve(_originalEqualityVector.size());
+    _equalityValueSet.clear();
+    _equalityValueSet.reserve(_originalEqualityVector.size());
+    std::for_each(
+        equalitySets.begin(), equalitySets.end(), [&](std::pair<BSONElement, Value2> elem) {
+            _equalitySet.push_back(elem.first);
+            _equalityValueSet.push_back(elem.second);
+        });
 }
 
 void InMatchExpression::_doSetCollator(const CollatorInterface* collator) {
     _collator = collator;
-    _eltCmp = BSONElementComparator(BSONElementComparator::FieldNamesMode::kIgnore, _collator);
-
-    if (!std::is_sorted(_originalEqualityVector.begin(),
-                        _originalEqualityVector.end(),
-                        _eltCmp.makeLessThan())) {
-        std::sort(
-            _originalEqualityVector.begin(), _originalEqualityVector.end(), _eltCmp.makeLessThan());
-    }
+    _eltCmp = Value2Comparator(_collator);
 
     // We need to re-compute '_equalitySet', since our set comparator has changed.
-    _equalitySet.clear();
-    _equalitySet.reserve(_originalEqualityVector.size());
-    std::unique_copy(_originalEqualityVector.begin(),
-                     _originalEqualityVector.end(),
-                     std::back_inserter(_equalitySet),
-                     _eltCmp.makeEqualTo());
+    _setVectors();
 }
 
 Status InMatchExpression::setEqualities(std::vector<BSONElement> equalities) {
@@ -514,21 +535,13 @@ Status InMatchExpression::setEqualities(std::vector<BSONElement> equalities) {
         }
     }
 
-    _originalEqualityVector = std::move(equalities);
+    std::vector<BSONElement> equalityVector = std::move(equalities);
+    _originalEqualityVector.clear();
+    std::for_each(equalityVector.begin(), equalityVector.end(), [&](BSONElement b) {
+        _originalEqualityVector.push_back({b, Value2(b)});
+    });
 
-    if (!std::is_sorted(_originalEqualityVector.begin(),
-                        _originalEqualityVector.end(),
-                        _eltCmp.makeLessThan())) {
-        std::sort(
-            _originalEqualityVector.begin(), _originalEqualityVector.end(), _eltCmp.makeLessThan());
-    }
-
-    _equalitySet.clear();
-    _equalitySet.reserve(_originalEqualityVector.size());
-    std::unique_copy(_originalEqualityVector.begin(),
-                     _originalEqualityVector.end(),
-                     std::back_inserter(_equalitySet),
-                     _eltCmp.makeEqualTo());
+    _setVectors();
 
     return Status::OK();
 }
@@ -683,23 +696,22 @@ bool BitTestMatchExpression::performBitTest(const char* eBinary, uint32_t eBinar
     return mt == BITS_ALL_SET || mt == BITS_ALL_CLEAR;
 }
 
-bool BitTestMatchExpression::matchesSingleElement(const BSONElement& e,
-                                                  MatchDetails* details) const {
+bool BitTestMatchExpression::matchesSingleValue(const Value2& e, MatchDetails* details) const {
     // Validate 'e' is a number or a BinData.
-    if (!e.isNumber() && e.type() != BSONType::BinData) {
+    if (!e.numeric() && e.getType() != BSONType::BinData) {
         return false;
     }
 
-    if (e.type() == BSONType::BinData) {
-        int eBinaryLen;  // Length of eBinary (in bytes).
-        const char* eBinary = e.binData(eBinaryLen);
+    if (e.getType() == BSONType::BinData) {
+        int eBinaryLen = e.getBinData().length;  // Length of eBinary (in bytes).
+        const char* eBinary = static_cast<const char*>(e.getBinData().data);
         return performBitTest(eBinary, eBinaryLen);
     }
 
-    invariant(e.isNumber());
+    invariant(e.numeric());
 
-    if (e.type() == BSONType::NumberDouble) {
-        double eDouble = e.numberDouble();
+    if (e.getType() == BSONType::NumberDouble) {
+        double eDouble = e.getDouble();
 
         // NaN doubles are rejected.
         if (std::isnan(eDouble)) {
@@ -721,7 +733,7 @@ bool BitTestMatchExpression::matchesSingleElement(const BSONElement& e,
         }
     }
 
-    long long eValue = e.numberLong();
+    long long eValue = e.coerceToLong();
     return performBitTest(eValue);
 }
 

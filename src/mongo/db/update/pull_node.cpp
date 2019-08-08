@@ -54,7 +54,7 @@ public:
 
     bool match(const mutablebson::ConstElement& element) final {
         if (element.getType() == mongo::Object) {
-            return _matchExpr->matchesBSON(element.getValueObject());
+            return _matchExpr->matchesDocument(Document2(element.getValueObject()));
         } else {
             return false;
         }
@@ -94,7 +94,7 @@ public:
 
     bool match(const mutablebson::ConstElement& element) final {
         BSONObj candidate = element.getValue().wrap("");
-        return _matchExpr->matchesBSON(candidate);
+        return _matchExpr->matchesDocument(Document2(candidate));
     }
 
     void setCollator(const CollatorInterface* collator) final {

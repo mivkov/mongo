@@ -40,10 +40,10 @@ bool InternalSchemaCondMatchExpression::matches(const MatchableDocument* doc,
                                               : elseBranch()->matches(doc, details);
 }
 
-bool InternalSchemaCondMatchExpression::matchesSingleElement(const BSONElement& elem,
-                                                             MatchDetails* details) const {
-    return condition()->matchesSingleElement(elem, details)
-        ? thenBranch()->matchesSingleElement(elem, details)
-        : elseBranch()->matchesSingleElement(elem, details);
+bool InternalSchemaCondMatchExpression::matchesSingleValue(const Value2& elem,
+                                                           MatchDetails* details) const {
+    return condition()->matchesSingleValue(elem, details)
+        ? thenBranch()->matchesSingleValue(elem, details)
+        : elseBranch()->matchesSingleValue(elem, details);
 }
 }  // namespace mongo

@@ -132,7 +132,7 @@ public:
      *    matches the '_otherwise' match expression.
      */
     bool matches(const MatchableDocument* doc, MatchDetails* details) const final;
-    bool matchesSingleElement(const BSONElement& element, MatchDetails* details) const final;
+    bool matchesSingleValue(const Value2& element, MatchDetails* details) const final;
 
     void serialize(BSONObjBuilder* builder) const final;
 
@@ -162,7 +162,7 @@ private:
     /**
      * Helper function for matches() and matchesSingleElement().
      */
-    bool _matchesBSONObj(const BSONObj& obj) const;
+    bool _matchesDocument(const Document2& obj) const;
 
     void _doAddDependencies(DepsTracker* deps) const final {
         deps->needWholeDocument = true;

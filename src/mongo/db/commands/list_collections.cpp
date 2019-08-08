@@ -89,7 +89,7 @@ boost::optional<vector<StringData>> _getExactNameMatches(const MatchExpression* 
     if (matchType == MatchExpression::EQ) {
         auto eqMatch = checked_cast<const EqualityMatchExpression*>(matcher);
         if (eqMatch->path() == "name") {
-            StringData name(eqMatch->getData().valueStringDataSafe());
+            StringData name(eqMatch->getValue().getStringDataSafe());
             if (name.size()) {
                 return {vector<StringData>{name}};
             } else {
@@ -100,10 +100,10 @@ boost::optional<vector<StringData>> _getExactNameMatches(const MatchExpression* 
         auto matchIn = checked_cast<const InMatchExpression*>(matcher);
         if (matchIn->path() == "name" && matchIn->getRegexes().empty()) {
             vector<StringData> exactMatches;
-            for (auto&& elem : matchIn->getEqualities()) {
-                StringData name(elem.valueStringDataSafe());
+            for (auto&& elem : matchIn->getValueEqualities()) {
+                StringData name(elem.getStringDataSafe());
                 if (name.size()) {
-                    exactMatches.push_back(elem.valueStringData());
+                    exactMatches.push_back(elem.getStringData());
                 }
             }
             return {std::move(exactMatches)};
@@ -123,7 +123,7 @@ void _addWorkingSetMember(OperationContext* opCtx,
                           const MatchExpression* matcher,
                           WorkingSet* ws,
                           QueuedDataStage* root) {
-    if (matcher && !matcher->matchesBSON(maybe)) {
+    if (matcher && !matcher->matchesDocument(Document2(maybe))) {
         return;
     }
 

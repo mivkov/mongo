@@ -242,7 +242,7 @@ BSONObj UpdateStage::transformAndUpdate(const Snapshotted<BSONObj>& oldObj, Reco
         matchDetails.requestElemMatchKey();
 
         dassert(cq);
-        verify(cq->root()->matchesBSON(oldObj.value(), &matchDetails));
+        verify(cq->root()->matchesDocument(Document2(oldObj.value()), &matchDetails));
 
         string matchedField;
         if (matchDetails.hasElemMatchKey())

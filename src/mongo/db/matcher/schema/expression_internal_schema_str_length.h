@@ -49,13 +49,12 @@ public:
 
     virtual Validator getComparator() const = 0;
 
-    bool matchesSingleElement(const BSONElement& elem,
-                              MatchDetails* details = nullptr) const final {
-        if (elem.type() != BSONType::String) {
+    bool matchesSingleValue(const Value2& elem, MatchDetails* details = nullptr) const final {
+        if (elem.getType() != BSONType::String) {
             return false;
         }
 
-        auto len = str::lengthInUTF8CodePoints(elem.valueStringData());
+        auto len = str::lengthInUTF8CodePoints(elem.getStringData());
         return getComparator()(len);
     };
 

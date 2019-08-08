@@ -30,6 +30,7 @@
 #pragma once
 
 #include "mongo/db/matcher/expression.h"
+#include "mongo/db/pipeline/document_comparator2.h"
 
 namespace mongo {
 
@@ -57,7 +58,7 @@ public:
         return nullptr;
     }
 
-    bool matchesSingleElement(const BSONElement& e, MatchDetails* details = nullptr) const final {
+    bool matchesSingleValue(const Value2& e, MatchDetails* details = nullptr) const final {
         return false;
     }
 
@@ -87,6 +88,7 @@ private:
 
     const std::string _code;
     const BSONObj _scope;  // Owned.
+    const DocumentComparator2 _comparator;
 };
 
 }  // namespace mongo

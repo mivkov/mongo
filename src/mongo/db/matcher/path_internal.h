@@ -34,6 +34,8 @@
 #include "mongo/base/string_data.h"
 #include "mongo/db/field_ref.h"
 #include "mongo/db/jsobj.h"
+#include "mongo/db/pipeline/document2.h"
+#include "mongo/db/pipeline/value2.h"
 
 namespace mongo {
 
@@ -48,5 +50,10 @@ BSONElement getFieldDottedOrArray(const BSONObj& doc,
                                   const FieldRef& path,
                                   size_t* idxPath,
                                   size_t startIndex = 0);
+
+Value2 getFieldDottedOrArrayDV(const Document2& doc,
+                               const FieldRef& path,
+                               size_t* idxPath,
+                               size_t startIndex = 0);
 
 }  // namespace mongo

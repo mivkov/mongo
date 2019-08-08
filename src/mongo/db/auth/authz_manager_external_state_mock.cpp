@@ -309,7 +309,7 @@ Status AuthzManagerExternalStateMock::_queryVector(
 
     for (BSONObjCollection::iterator vecIt = mapIt->second.begin(); vecIt != mapIt->second.end();
          ++vecIt) {
-        if (matcher->matchesBSON(*vecIt)) {
+        if (matcher->matchesDocument(Document2(*vecIt))) {
             result->push_back(vecIt);
         }
     }

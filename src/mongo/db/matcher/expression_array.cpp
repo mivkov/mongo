@@ -34,13 +34,13 @@
 
 namespace mongo {
 
-bool ArrayMatchingMatchExpression::matchesSingleElement(const BSONElement& elt,
-                                                        MatchDetails* details) const {
-    if (elt.type() != BSONType::Array) {
+bool ArrayMatchingMatchExpression::matchesSingleValue(const Value2& elt,
+                                                      MatchDetails* details) const {
+    if (elt.getType() != BSONType::Array) {
         return false;
     }
 
-    return matchesArray(elt.embeddedObject(), details);
+    return matchesArray(elt.getDocument(), details);
 }
 
 
@@ -70,16 +70,17 @@ ElemMatchObjectMatchExpression::ElemMatchObjectMatchExpression(StringData path,
                                                                MatchExpression* sub)
     : ArrayMatchingMatchExpression(ELEM_MATCH_OBJECT, path), _sub(sub) {}
 
-bool ElemMatchObjectMatchExpression::matchesArray(const BSONObj& anArray,
+bool ElemMatchObjectMatchExpression::matchesArray(const Document2& anArray,
                                                   MatchDetails* details) const {
-    BSONObjIterator i(anArray);
+    Field2Iterator i(anArray);
     while (i.more()) {
-        BSONElement inner = i.next();
-        if (!inner.isABSONObj())
+        Document2::FieldPair inner = i.next();
+        if (inner.second.getType() != BSONType::Object && inner.second.getType() != BSONType::Array)
             continue;
-        if (_sub->matchesBSON(inner.Obj(), nullptr)) {
+        if (_sub->matchesDocument(inner.second.getDocument(), NULL)) {
             if (details && details->needRecord()) {
-                details->setElemMatchKey(inner.fieldName());
+                std::string fst(inner.first);
+                details->setElemMatchKey(fst);
             }
             return true;
         }
@@ -136,15 +137,14 @@ void ElemMatchValueMatchExpression::add(MatchExpression* sub) {
     _subs.push_back(sub);
 }
 
-bool ElemMatchValueMatchExpression::matchesArray(const BSONObj& anArray,
+bool ElemMatchValueMatchExpression::matchesArray(const Document2& anArray,
                                                  MatchDetails* details) const {
-    BSONObjIterator i(anArray);
+    Field2Iterator i(anArray);
     while (i.more()) {
-        BSONElement inner = i.next();
-
-        if (_arrayElementMatchesAll(inner)) {
+        Document2::FieldPair inner = i.next();
+        if (_arrayElementMatchesAll(inner.second)) {
             if (details && details->needRecord()) {
-                details->setElemMatchKey(inner.fieldName());
+                details->setElemMatchKey(std::string(inner.first));
             }
             return true;
         }
@@ -152,9 +152,9 @@ bool ElemMatchValueMatchExpression::matchesArray(const BSONObj& anArray,
     return false;
 }
 
-bool ElemMatchValueMatchExpression::_arrayElementMatchesAll(const BSONElement& e) const {
+bool ElemMatchValueMatchExpression::_arrayElementMatchesAll(const Value2& e) const {
     for (unsigned i = 0; i < _subs.size(); i++) {
-        if (!_subs[i]->matchesSingleElement(e))
+        if (!_subs[i]->matchesSingleValue(e))
             return false;
     }
     return true;
@@ -207,10 +207,10 @@ MatchExpression::ExpressionOptimizerFunc ElemMatchValueMatchExpression::getOptim
 SizeMatchExpression::SizeMatchExpression(StringData path, int size)
     : ArrayMatchingMatchExpression(SIZE, path), _size(size) {}
 
-bool SizeMatchExpression::matchesArray(const BSONObj& anArray, MatchDetails* details) const {
+bool SizeMatchExpression::matchesArray(const Document2& anArray, MatchDetails* details) const {
     if (_size < 0)
         return false;
-    return anArray.nFields() == _size;
+    return anArray.size() == (size_t)_size;
 }
 
 void SizeMatchExpression::debugString(StringBuilder& debug, int indentationLevel) const {

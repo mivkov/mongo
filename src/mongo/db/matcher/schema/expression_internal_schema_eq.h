@@ -31,6 +31,7 @@
 
 #include "mongo/bson/unordered_fields_bsonelement_comparator.h"
 #include "mongo/db/matcher/expression_leaf.h"
+#include "mongo/db/pipeline/unordered_fields_value_comparator2.h"
 
 namespace mongo {
 
@@ -50,7 +51,7 @@ public:
 
     std::unique_ptr<MatchExpression> shallowClone() const final;
 
-    bool matchesSingleElement(const BSONElement&, MatchDetails*) const final;
+    bool matchesSingleValue(const Value2&, MatchDetails*) const final;
 
     void debugString(StringBuilder& debug, int indentationLevel) const final;
 
@@ -75,7 +76,8 @@ private:
         return [](std::unique_ptr<MatchExpression> expression) { return expression; };
     }
 
-    UnorderedFieldsBSONElementComparator _eltCmp;
-    BSONElement _rhsElem;
+    UnorderedFieldsValueComparator _eltCmp;
+    Value2 _rhsElem;
+    BSONElement _rhsObj;
 };
 }  // namespace mongo

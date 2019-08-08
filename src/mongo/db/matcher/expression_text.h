@@ -47,7 +47,7 @@ public:
         return _ftsQuery;
     }
 
-    bool matchesSingleElement(const BSONElement& e, MatchDetails* details = nullptr) const final {
+    bool matchesSingleValue(const Value2& e, MatchDetails* details = nullptr) const final {
         // Text match expressions force the selection of the text index and always generate EXACT
         // index bounds (which causes the MatchExpression node to be trimmed), so we don't currently
         // implement any explicit text matching logic here. SERVER-17648 tracks the work to

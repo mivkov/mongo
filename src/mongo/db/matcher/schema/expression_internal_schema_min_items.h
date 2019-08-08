@@ -44,8 +44,8 @@ public:
         : InternalSchemaNumArrayItemsMatchExpression(
               INTERNAL_SCHEMA_MIN_ITEMS, path, numItems, "$_internalSchemaMinItems"_sd) {}
 
-    bool matchesArray(const BSONObj& anArray, MatchDetails* details) const final {
-        return (anArray.nFields() >= numItems());
+    bool matchesArray(const Document2& anArray, MatchDetails* details) const final {
+        return ((long long)anArray.size() >= numItems());
     }
 
     std::unique_ptr<MatchExpression> shallowClone() const final {

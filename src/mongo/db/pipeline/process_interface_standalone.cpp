@@ -495,7 +495,7 @@ std::vector<BSONObj> MongoInterfaceStandalone::getMatchingPlanCacheEntryStats(
     };
 
     const auto predicate = [&matchExp](const BSONObj& obj) {
-        return !matchExp ? true : matchExp->matchesBSON(obj);
+        return !matchExp ? true : matchExp->matchesDocument(obj);
     };
 
     AutoGetCollection autoColl(opCtx, nss, MODE_IS);

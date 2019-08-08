@@ -90,12 +90,12 @@ DocumentSource::GetNextResult DocumentSourceMatch::getNext() {
     for (; nextInput.isAdvanced(); nextInput = pSource->getNext()) {
         // MatchExpression only takes BSON documents, so we have to make one. As an optimization,
         // only serialize the fields we need to do the match.
-        BSONObj toMatch = _dependencies.needWholeDocument
-            ? nextInput.getDocument().toBson()
-            : document_path_support::documentToBsonWithPaths(nextInput.getDocument(),
-                                                             _dependencies.fields);
+        // BSONObj toMatch = _dependencies.needWholeDocument
+        //     ? nextInput.getDocument().toBson()
+        //     : document_path_support::documentToBsonWithPaths(nextInput.getDocument(),
+        //                                                      _dependencies.fields);
 
-        if (_expression->matchesBSON(toMatch)) {
+        if (_expression->matchesDocument(nextInput.getDocument())) {
             return nextInput;
         }
 

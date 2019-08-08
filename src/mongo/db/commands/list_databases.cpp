@@ -156,7 +156,7 @@ public:
             int64_t size = 0;
             if (!nameOnly) {
                 // Filtering on name only should not require taking locks on filtered-out names.
-                if (filterNameOnly && !filter->matchesBSON(b.asTempObj()))
+                if (filterNameOnly && !filter->matchesDocument(Document2(b.asTempObj())))
                     continue;
 
                 AutoGetDb autoDb(opCtx, dbname, MODE_IS);
@@ -175,7 +175,7 @@ public:
             }
             BSONObj curDbObj = b.obj();
 
-            if (!filter || filter->matchesBSON(curDbObj)) {
+            if (!filter || filter->matchesDocument(Document2(curDbObj))) {
                 totalSize += size;
                 dbInfos.push_back(curDbObj);
             }

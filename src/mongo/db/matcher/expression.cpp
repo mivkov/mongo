@@ -59,13 +59,13 @@ void MatchExpression::_debugAddSpace(StringBuilder& debug, int indentationLevel)
         debug << "    ";
 }
 
-bool MatchExpression::matchesBSON(const BSONObj& doc, MatchDetails* details) const {
-    BSONMatchableDocument mydoc(doc);
+bool MatchExpression::matchesDocument(const Document2& doc, MatchDetails* details) const {
+    DocumentValueMatchableDocument mydoc(doc);
     return matches(&mydoc, details);
 }
 
-bool MatchExpression::matchesBSONElement(BSONElement elem, MatchDetails* details) const {
-    BSONElementViewMatchableDocument matchableDoc(elem);
+bool MatchExpression::matchesValue(Value2 elem, MatchDetails* details) const {
+    DocumentValueMatchableDocument matchableDoc(elem);
     return matches(&matchableDoc, details);
 }
 

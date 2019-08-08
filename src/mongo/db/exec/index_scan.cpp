@@ -201,7 +201,7 @@ PlanStage::StageState IndexScan::doWork(WorkingSetID* out) {
     }
 
     if (_filter) {
-        if (!Filter::passes(kv->key, _keyPattern, _filter)) {
+        if (!Filter::passes(Document2(kv->key), _keyPattern, _filter)) {
             return PlanStage::NEED_TIME;
         }
     }

@@ -34,6 +34,7 @@
 #include "mongo/bson/simple_bsonobj_comparator.h"
 #include "mongo/db/geo/geoparser.h"
 #include "mongo/db/matcher/expression_parser.h"
+#include "mongo/db/pipeline/document_comparator2.h"
 #include "mongo/platform/basic.h"
 #include "mongo/util/log.h"
 #include "mongo/util/str.h"
@@ -331,7 +332,11 @@ Status GeoNearExpression::parseFrom(const BSONObj& obj) {
 GeoMatchExpression::GeoMatchExpression(StringData path,
                                        const GeoExpression* query,
                                        const BSONObj& rawObj)
-    : LeafMatchExpression(GEO, path), _rawObj(rawObj), _query(query), _canSkipValidation(false) {}
+    : LeafMatchExpression(GEO, path),
+      _rawObj(rawObj),
+      _doc(Document2(_rawObj)),
+      _query(query),
+      _canSkipValidation(false) {}
 
 /**
 * Takes shared ownership of the passed-in GeoExpression.
@@ -339,15 +344,24 @@ GeoMatchExpression::GeoMatchExpression(StringData path,
 GeoMatchExpression::GeoMatchExpression(StringData path,
                                        std::shared_ptr<const GeoExpression> query,
                                        const BSONObj& rawObj)
-    : LeafMatchExpression(GEO, path), _rawObj(rawObj), _query(query), _canSkipValidation(false) {}
+    : LeafMatchExpression(GEO, path),
+      _rawObj(rawObj),
+      _doc(Document2(_rawObj)),
+      _query(query),
+      _canSkipValidation(false) {}
 
-bool GeoMatchExpression::matchesSingleElement(const BSONElement& e, MatchDetails* details) const {
-    if (!e.isABSONObj())
+bool GeoMatchExpression::matchesSingleValue(const Value2& e, MatchDetails* details) const {
+    if (e.getType() != BSONType::Object && e.getType() != BSONType::Array)
         return false;
 
     GeometryContainer geometry;
 
-    if (!geometry.parseFromStorage(e, _canSkipValidation).isOK())
+    BSONObjBuilder bob;
+    bob << "" << e;
+    BSONObj obj = bob.obj();
+    BSONElement elem = obj[""];
+
+    if (!geometry.parseFromStorage(elem, _canSkipValidation).isOK())  // bad!!!
         return false;
 
     // Never match big polygon
@@ -398,7 +412,7 @@ bool GeoMatchExpression::equivalent(const MatchExpression* other) const {
     if (path() != realOther->path())
         return false;
 
-    return SimpleBSONObjComparator::kInstance.evaluate(_rawObj == realOther->_rawObj);
+    return _comparator.evaluate(_doc == realOther->_doc);
 }
 
 std::unique_ptr<MatchExpression> GeoMatchExpression::shallowClone() const {
@@ -418,15 +432,20 @@ std::unique_ptr<MatchExpression> GeoMatchExpression::shallowClone() const {
 GeoNearMatchExpression::GeoNearMatchExpression(StringData path,
                                                const GeoNearExpression* query,
                                                const BSONObj& rawObj)
-    : LeafMatchExpression(GEO_NEAR, path), _rawObj(rawObj), _query(query) {}
+    : LeafMatchExpression(GEO_NEAR, path),
+      _rawObj(rawObj),
+      _doc(Document2(_rawObj)),
+      _query(query) {}
 
 GeoNearMatchExpression::GeoNearMatchExpression(StringData path,
                                                std::shared_ptr<const GeoNearExpression> query,
                                                const BSONObj& rawObj)
-    : LeafMatchExpression(GEO_NEAR, path), _rawObj(rawObj), _query(query) {}
+    : LeafMatchExpression(GEO_NEAR, path),
+      _rawObj(rawObj),
+      _doc(Document2(_rawObj)),
+      _query(query) {}
 
-bool GeoNearMatchExpression::matchesSingleElement(const BSONElement& e,
-                                                  MatchDetails* details) const {
+bool GeoNearMatchExpression::matchesSingleValue(const Value2& e, MatchDetails* details) const {
     return true;
 }
 
@@ -456,7 +475,7 @@ bool GeoNearMatchExpression::equivalent(const MatchExpression* other) const {
     if (path() != realOther->path())
         return false;
 
-    return SimpleBSONObjComparator::kInstance.evaluate(_rawObj == realOther->_rawObj);
+    return _comparator.evaluate(_doc == realOther->_doc);
 }
 
 std::unique_ptr<MatchExpression> GeoNearMatchExpression::shallowClone() const {

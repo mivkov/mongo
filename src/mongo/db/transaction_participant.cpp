@@ -249,7 +249,7 @@ void updateSessionEntry(OperationContext* opCtx, const UpdateRequest& updateRequ
 
     auto matcher =
         fassert(40673, MatchExpressionParser::parse(updateRequest.getQuery(), std::move(expCtx)));
-    if (!matcher->matchesBSON(originalDoc)) {
+    if (!matcher->matchesDocument(Document2(originalDoc))) {
         // Document no longer match what we expect so throw WCE to make the caller re-examine.
         throw WriteConflictException();
     }

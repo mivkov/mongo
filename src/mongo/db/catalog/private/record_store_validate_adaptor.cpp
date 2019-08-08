@@ -88,7 +88,7 @@ Status RecordStoreValidateAdaptor::validate(const RecordId& recordId,
 
         if (descriptor->isPartial()) {
             const IndexCatalogEntry* ice = _indexCatalog->getEntry(descriptor);
-            if (!ice->getFilterExpression()->matchesBSON(recordBson)) {
+            if (!ice->getFilterExpression()->matchesDocument(recordBson)) {
                 continue;
             }
         }

@@ -547,7 +547,7 @@ Status MultiIndexBlock::insert(OperationContext* opCtx, const BSONObj& doc, cons
     }
 
     for (size_t i = 0; i < _indexes.size(); i++) {
-        if (_indexes[i].filterExpression && !_indexes[i].filterExpression->matchesBSON(doc)) {
+        if (_indexes[i].filterExpression && !_indexes[i].filterExpression->matchesDocument(doc)) {
             continue;
         }
 

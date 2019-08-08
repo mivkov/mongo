@@ -50,7 +50,7 @@ public:
     ExprMatchExpression(boost::intrusive_ptr<Expression> expr,
                         const boost::intrusive_ptr<ExpressionContext>& expCtx);
 
-    bool matchesSingleElement(const BSONElement& e, MatchDetails* details = nullptr) const final {
+    bool matchesSingleValue(const Value2& e, MatchDetails* details = nullptr) const final {
         MONGO_UNREACHABLE;
     }
 

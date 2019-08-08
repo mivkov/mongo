@@ -54,19 +54,19 @@ public:
      * Matches 'array' if the element at '_index' matches '_expression', or if its size is less than
      * '_index'.
      */
-    bool matchesArray(const BSONObj& array, MatchDetails* details) const final {
-        BSONElement element;
-        auto iterator = BSONObjIterator(array);
+    bool matchesArray(const Document2& array, MatchDetails* details) const final {
+        Value2 element;
+        auto iterator = Field2Iterator(array);
 
         // Skip ahead to the element we want, bailing early if there aren't enough elements.
         for (auto i = 0LL; i <= _index; ++i) {
             if (!iterator.more()) {
                 return true;
             }
-            element = iterator.next();
+            element = iterator.next().second;
         }
 
-        return _expression->matchesBSONElement(element, details);
+        return _expression->matchesValue(element, details);
     }
 
     BSONObj getSerializedRightHandSide() const final;

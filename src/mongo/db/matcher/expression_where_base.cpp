@@ -31,7 +31,8 @@
 
 #include "mongo/db/matcher/expression_where_base.h"
 
-#include "mongo/bson/simple_bsonobj_comparator.h"
+// #include "mongo/bson/simple_bsonobj_comparator.h"
+#include "mongo/db/pipeline/document_comparator2.h"
 
 namespace mongo {
 
@@ -59,7 +60,7 @@ bool WhereMatchExpressionBase::equivalent(const MatchExpression* other) const {
     }
     const WhereMatchExpressionBase* realOther = static_cast<const WhereMatchExpressionBase*>(other);
     return getCode() == realOther->getCode() &&
-        SimpleBSONObjComparator::kInstance.evaluate(getScope() == realOther->getScope());
+        _comparator.evaluate(Document2(getScope()) == Document2(realOther->getScope()));
 }
 
 }  // namespace mongo

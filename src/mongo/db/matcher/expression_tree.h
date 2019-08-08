@@ -112,7 +112,7 @@ public:
 
     virtual bool matches(const MatchableDocument* doc, MatchDetails* details = nullptr) const;
 
-    bool matchesSingleElement(const BSONElement&, MatchDetails* details = nullptr) const final;
+    bool matchesSingleValue(const Value2&, MatchDetails* details = nullptr) const final;
 
     virtual std::unique_ptr<MatchExpression> shallowClone() const {
         std::unique_ptr<AndMatchExpression> self = std::make_unique<AndMatchExpression>();
@@ -141,7 +141,7 @@ public:
 
     virtual bool matches(const MatchableDocument* doc, MatchDetails* details = nullptr) const;
 
-    bool matchesSingleElement(const BSONElement&, MatchDetails* details = nullptr) const final;
+    bool matchesSingleValue(const Value2&, MatchDetails* details = nullptr) const final;
 
     virtual std::unique_ptr<MatchExpression> shallowClone() const {
         std::unique_ptr<OrMatchExpression> self = std::make_unique<OrMatchExpression>();
@@ -170,7 +170,7 @@ public:
 
     virtual bool matches(const MatchableDocument* doc, MatchDetails* details = nullptr) const;
 
-    bool matchesSingleElement(const BSONElement&, MatchDetails* details = nullptr) const final;
+    bool matchesSingleValue(const Value2&, MatchDetails* details = nullptr) const final;
 
     virtual std::unique_ptr<MatchExpression> shallowClone() const {
         std::unique_ptr<NorMatchExpression> self = std::make_unique<NorMatchExpression>();
@@ -205,8 +205,8 @@ public:
         return !_exp->matches(doc, nullptr);
     }
 
-    bool matchesSingleElement(const BSONElement& elt, MatchDetails* details = nullptr) const final {
-        return !_exp->matchesSingleElement(elt, details);
+    bool matchesSingleValue(const Value2& elt, MatchDetails* details = nullptr) const final {
+        return !_exp->matchesSingleValue(elt, details);
     }
 
     virtual void debugString(StringBuilder& debug, int indentationLevel = 0) const;

@@ -29,7 +29,7 @@
 
 #pragma once
 
-
+#include "mongo/bson/bsonelement_comparator.h"
 #include "mongo/db/catalog/collection.h"
 #include "mongo/db/exec/requires_collection_stage.h"
 #include "mongo/db/jsobj.h"

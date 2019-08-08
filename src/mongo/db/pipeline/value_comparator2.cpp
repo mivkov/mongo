@@ -27,34 +27,34 @@
  *    it in the license file.
  */
 
-#pragma once
+#include "mongo/platform/basic.h"
 
-#include "mongo/db/matcher/schema/expression_internal_schema_num_array_items.h"
+#include "mongo/db/pipeline/value_comparator2.h"
+
+#include "mongo/util/assert_util.h"
 
 namespace mongo {
 
-/**
- * MatchExpression for $_internalSchemaMaxItems keyword. Takes an integer argument that indicates
- * the maximum amount of elements in an array.
- */
-class InternalSchemaMaxItemsMatchExpression final
-    : public InternalSchemaNumArrayItemsMatchExpression {
-public:
-    InternalSchemaMaxItemsMatchExpression(StringData path, long long numItems)
-        : InternalSchemaNumArrayItemsMatchExpression(
-              INTERNAL_SCHEMA_MAX_ITEMS, path, numItems, "$_internalSchemaMaxItems"_sd) {}
+const Value2Comparator Value2Comparator::kInstance{};
 
-    bool matchesArray(const Document2& anArray, MatchDetails* details) const final {
-        return ((long long)anArray.size() <= numItems());
+bool Value2Comparator::evaluate(Value2::DeferredComparison deferredComparison) const {
+    int cmp = Value2::compare(deferredComparison.lhs, deferredComparison.rhs, _stringComparator);
+    switch (deferredComparison.type) {
+        case Value2::DeferredComparison::Type::kLT:
+            return cmp < 0;
+        case Value2::DeferredComparison::Type::kLTE:
+            return cmp <= 0;
+        case Value2::DeferredComparison::Type::kEQ:
+            return cmp == 0;
+        case Value2::DeferredComparison::Type::kGTE:
+            return cmp >= 0;
+        case Value2::DeferredComparison::Type::kGT:
+            return cmp > 0;
+        case Value2::DeferredComparison::Type::kNE:
+            return cmp != 0;
     }
 
-    std::unique_ptr<MatchExpression> shallowClone() const final {
-        std::unique_ptr<InternalSchemaMaxItemsMatchExpression> maxItems =
-            std::make_unique<InternalSchemaMaxItemsMatchExpression>(path(), numItems());
-        if (getTag()) {
-            maxItems->setTag(getTag()->clone());
-        }
-        return std::move(maxItems);
-    }
-};
+    MONGO_UNREACHABLE;
+}
+
 }  // namespace mongo

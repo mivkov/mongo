@@ -26,14 +26,35 @@ env.Library(
         ]
     )
 
+env.CppUnitTest(
+    target='field_path_test',
+    source='field_path_test.cpp',
+    LIBDEPS=[
+        'field_path',
+        ],
+    )
+
+env.CppUnitTest(
+    target='value2_test',
+    source='value2_test.cpp',
+    LIBDEPS=[
+        'document_value',
+        ],
+    )
+
 env.Library(
     target='document_value',
     source=[
         'document.cpp',
+	'document2.cpp',
         'document_comparator.cpp',
+	'document_comparator2.cpp',
         'document_path_support.cpp',
         'value.cpp',
+	'value2.cpp',
         'value_comparator.cpp',
+	'value_comparator2.cpp',
+    'unordered_fields_value_comparator2.cpp',
         ],
     LIBDEPS=[
         'field_path',

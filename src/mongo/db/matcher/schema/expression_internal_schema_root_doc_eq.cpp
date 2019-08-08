@@ -37,7 +37,7 @@ constexpr StringData InternalSchemaRootDocEqMatchExpression::kName;
 
 bool InternalSchemaRootDocEqMatchExpression::matches(const MatchableDocument* doc,
                                                      MatchDetails* details) const {
-    return _objCmp.evaluate(doc->toBSON() == _rhsObj);
+    return _objCmp.evaluate(doc->toDocument() == _rhsDoc);
 }
 
 void InternalSchemaRootDocEqMatchExpression::debugString(StringBuilder& debug,
@@ -66,7 +66,7 @@ bool InternalSchemaRootDocEqMatchExpression::equivalent(const MatchExpression* o
     }
 
     auto realOther = static_cast<const InternalSchemaRootDocEqMatchExpression*>(other);
-    return _objCmp.evaluate(_rhsObj == realOther->_rhsObj);
+    return _objCmp.evaluate(_rhsDoc == realOther->_rhsDoc);
 }
 
 std::unique_ptr<MatchExpression> InternalSchemaRootDocEqMatchExpression::shallowClone() const {

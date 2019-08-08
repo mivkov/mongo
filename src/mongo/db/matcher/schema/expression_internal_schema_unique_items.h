@@ -33,6 +33,8 @@
 
 #include "mongo/bson/unordered_fields_bsonelement_comparator.h"
 #include "mongo/db/matcher/expression_array.h"
+#include "mongo/db/pipeline/unordered_fields_value_comparator2.h"
+#include "mongo/db/pipeline/value_comparator2.h"
 
 namespace mongo {
 
@@ -61,9 +63,11 @@ public:
         return nullptr;
     }
 
-    bool matchesArray(const BSONObj& array, MatchDetails*) const final {
-        auto set = _comparator.makeBSONEltSet();
-        for (auto&& elem : array) {
+    bool matchesArray(const Document2& array, MatchDetails*) const final {
+        auto set = _comparator.makeSet();
+        Field2Iterator i(array);
+        while (i.more()) {
+            Value2&& elem = i.next().second;
             if (!std::get<bool>(set.insert(elem))) {
                 return false;
             }
@@ -84,7 +88,7 @@ private:
         return [](std::unique_ptr<MatchExpression> expression) { return expression; };
     }
 
-    // The comparator to use when comparing BSONElements, which will never use a collation.
-    UnorderedFieldsBSONElementComparator _comparator;
+    // // The comparator to use when comparing BSONElements, which will never use a collation.
+    UnorderedFieldsValueComparator _comparator;
 };
 }  // namespace mongo

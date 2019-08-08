@@ -80,5 +80,46 @@ BSONElement getFieldDottedOrArray(const BSONObj& doc,
     return res;
 }
 
+Value2 getFieldDottedOrArrayDV(const Document2& doc,
+                               const FieldRef& path,
+                               size_t* idxPath,
+                               size_t startIndex) {
+    if (path.numParts() == startIndex) {
+        return doc.getField("");
+    }
+
+    Value2 res;
+
+    Document2 curr = doc;
+    bool stop = false;
+    size_t partNum = startIndex;
+    while (partNum < path.numParts() && !stop) {
+        res = curr.getField(path.getPart(partNum));
+
+        switch (res.getType()) {
+            case EOO:
+                stop = true;
+                break;
+
+            case Object:
+                curr = res.getDocument();
+                ++partNum;
+                break;
+
+            case Array:
+                stop = true;
+                break;
+
+            default:
+                if (partNum + 1 < path.numParts()) {
+                    res = Value2();
+                }
+                stop = true;
+        }
+    }
+
+    *idxPath = partNum;
+    return res;
+}
 
 }  // namespace mongo

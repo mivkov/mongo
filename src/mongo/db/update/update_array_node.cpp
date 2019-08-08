@@ -88,7 +88,7 @@ UpdateExecutor::ApplyResult UpdateArrayNode::apply(
             } else {
                 auto filter = _arrayFilters.find(update.first);
                 invariant(filter != _arrayFilters.end());
-                if (filter->second->matchesBSONElement(arrayElement)) {
+                if (filter->second->matchesValue(Value2(arrayElement))) {
                     matchingElements[i].push_back(update.second.get());
                 }
             }

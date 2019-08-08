@@ -51,11 +51,15 @@ public:
         return _wsm->obj.value();
     }
 
+    Document2 toDocument() const {
+        return Document2(toBSON());
+    }
+
     ElementIterator* allocateIterator(const ElementPath* path) const final {
         // BSONElementIterator does some interesting things with arrays that I don't think
         // SimpleArrayElementIterator does.
         if (_wsm->hasObj()) {
-            return new BSONElementIterator(path, _wsm->obj.value());
+            return new DocumentValueIterator(path, Document2(_wsm->obj.value()));
         }
 
         // NOTE: This (kind of) duplicates code in WorkingSetMember::getFieldDotted.
@@ -64,15 +68,15 @@ public:
         // over it.
         for (size_t i = 0; i < _wsm->keyData.size(); ++i) {
             BSONObjIterator keyPatternIt(_wsm->keyData[i].indexKeyPattern);
-            BSONObjIterator keyDataIt(_wsm->keyData[i].keyData);
+            Field2Iterator keyDataIt(Document2(_wsm->keyData[i].keyData));
 
             while (keyPatternIt.more()) {
                 BSONElement keyPatternElt = keyPatternIt.next();
                 invariant(keyDataIt.more());
-                BSONElement keyDataElt = keyDataIt.next();
+                Value2 keyDataElt = keyDataIt.next().second;
 
                 if (path->fieldRef().equalsDottedField(keyPatternElt.fieldName())) {
-                    if (Array == keyDataElt.type()) {
+                    if (Array == keyDataElt.getType()) {
                         return new SimpleArrayElementIterator(keyDataElt, true);
                     } else {
                         return new SingleElementElementIterator(keyDataElt);
@@ -86,7 +90,7 @@ public:
                 "trying to match on unknown field: " + path->fieldRef().dottedField().toString(),
                 0);
 
-        return new SingleElementElementIterator(BSONElement());
+        return new SingleElementElementIterator(Value2());
     }
 
     void releaseIterator(ElementIterator* iterator) const final {
@@ -99,24 +103,28 @@ private:
 
 class IndexKeyMatchableDocument : public MatchableDocument {
 public:
-    IndexKeyMatchableDocument(const BSONObj& key, const BSONObj& keyPattern)
+    IndexKeyMatchableDocument(const Document2& key, const BSONObj& keyPattern)
         : _keyPattern(keyPattern), _key(key) {}
 
     BSONObj toBSON() const {
+        return _key.toBson();
+    }
+
+    Document2 toDocument() const {
         return _key;
     }
 
     ElementIterator* allocateIterator(const ElementPath* path) const final {
         BSONObjIterator keyPatternIt(_keyPattern);
-        BSONObjIterator keyDataIt(_key);
+        Field2Iterator keyDataIt(_key);
 
         while (keyPatternIt.more()) {
             BSONElement keyPatternElt = keyPatternIt.next();
             invariant(keyDataIt.more());
-            BSONElement keyDataElt = keyDataIt.next();
+            Value2 keyDataElt = keyDataIt.next().second;
 
             if (path->fieldRef().equalsDottedField(keyPatternElt.fieldName())) {
-                if (Array == keyDataElt.type()) {
+                if (Array == keyDataElt.getType()) {
                     return new SimpleArrayElementIterator(keyDataElt, true);
                 } else {
                     return new SingleElementElementIterator(keyDataElt);
@@ -129,7 +137,7 @@ public:
                 "trying to match on unknown field: " + path->fieldRef().dottedField().toString(),
                 0);
 
-        return new SingleElementElementIterator(BSONElement());
+        return new SingleElementElementIterator(Value2());
     }
 
     void releaseIterator(ElementIterator* iterator) const final {
@@ -138,7 +146,7 @@ public:
 
 private:
     BSONObj _keyPattern;
-    BSONObj _key;
+    Document2 _key;
 };
 
 /**
@@ -158,7 +166,7 @@ public:
         return filter->matches(&doc, nullptr);
     }
 
-    static bool passes(const BSONObj& keyData,
+    static bool passes(const Document2& keyData,
                        const BSONObj& keyPattern,
                        const MatchExpression* filter) {
         if (nullptr == filter) {

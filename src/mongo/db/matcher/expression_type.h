@@ -74,8 +74,8 @@ public:
         return std::move(expr);
     }
 
-    bool matchesSingleElement(const BSONElement& elem, MatchDetails* details = nullptr) const {
-        return _typeSet.hasType(elem.type());
+    bool matchesSingleValue(const Value2& elem, MatchDetails* details = nullptr) const {
+        return _typeSet.hasType(elem.getType());
     }
 
     void debugString(StringBuilder& debug, int indentationLevel) const final {
@@ -182,9 +182,8 @@ public:
         return kName;
     }
 
-    bool matchesSingleElement(const BSONElement& elem,
-                              MatchDetails* details = nullptr) const final {
-        return elem.type() == BSONType::BinData && elem.binDataType() == _binDataSubType;
+    bool matchesSingleValue(const Value2& elem, MatchDetails* details = nullptr) const final {
+        return elem.getType() == BSONType::BinData && elem.getBinData().type == _binDataSubType;
     }
 
     std::unique_ptr<MatchExpression> shallowClone() const final {
@@ -259,16 +258,14 @@ public:
         return MatchCategory::kOther;
     }
 
-    bool matchesSingleElement(const BSONElement& elem,
-                              MatchDetails* details = nullptr) const final {
-        if (elem.type() != BSONType::BinData)
+    bool matchesSingleValue(const Value2& elem, MatchDetails* details = nullptr) const final {
+        if (elem.getType() != BSONType::BinData)
             return false;
-        if (elem.binDataType() != BinDataType::Encrypt)
+        if (elem.getBinData().type != BinDataType::Encrypt)
             return false;
 
-        int binDataLen;
-        auto binData = elem.binData(binDataLen);
-        if (!binDataLen)
+        const char* binData = static_cast<const char*>(elem.getBinData().data);
+        if (!elem.getBinData().length)
             return false;
 
         auto fleBlobSubType = binData[0];

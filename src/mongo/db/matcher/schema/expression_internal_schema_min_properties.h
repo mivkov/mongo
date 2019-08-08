@@ -46,16 +46,15 @@ public:
                                                      "$_internalSchemaMinProperties") {}
 
     bool matches(const MatchableDocument* doc, MatchDetails* details) const final {
-        BSONObj obj = doc->toBSON();
-        return (obj.nFields() >= numProperties());
+        Document2 obj = doc->toDocument();
+        return ((long long)obj.size() >= numProperties());
     }
 
-    bool matchesSingleElement(const BSONElement& elem,
-                              MatchDetails* details = nullptr) const final {
-        if (elem.type() != BSONType::Object) {
+    bool matchesSingleValue(const Value2& elem, MatchDetails* details = nullptr) const final {
+        if (elem.getType() != BSONType::Object) {
             return false;
         }
-        return (elem.embeddedObject().nFields() >= numProperties());
+        return ((long long)elem.getDocument().size() >= numProperties());
     }
 
     virtual std::unique_ptr<MatchExpression> shallowClone() const final {

@@ -58,11 +58,11 @@ public:
         MatchableDocument::IteratorHolder cursor(doc, &_elementPath);
         while (cursor->more()) {
             ElementIterator::Context e = cursor->next();
-            if (!matchesSingleElement(e.element(), details)) {
+            if (!matchesSingleValue(e.element(), details)) {
                 continue;
             }
-            if (details && details->needRecord() && !e.arrayOffset().eoo()) {
-                details->setElemMatchKey(e.arrayOffset().fieldName());
+            if (details && details->needRecord() && !e.arrayOffset().missing()) {
+                details->setElemMatchKey(e.arrayOffsetFieldName().toString());
             }
             return true;
         }

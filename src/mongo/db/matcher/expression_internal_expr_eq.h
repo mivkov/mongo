@@ -58,15 +58,15 @@ public:
                                         value,
                                         ElementPath::LeafArrayBehavior::kNoTraversal,
                                         ElementPath::NonLeafArrayBehavior::kMatchSubpath) {
-        invariant(_rhs.type() != BSONType::Undefined);
-        invariant(_rhs.type() != BSONType::Array);
+        invariant(_rhs.getType() != BSONType::Undefined);
+        invariant(_rhs.getType() != BSONType::Array);
     }
 
     StringData name() const final {
         return kName;
     }
 
-    bool matchesSingleElement(const BSONElement&, MatchDetails*) const final;
+    bool matchesSingleValue(const Value2&, MatchDetails*) const final;
 
     std::unique_ptr<MatchExpression> shallowClone() const final;
 };

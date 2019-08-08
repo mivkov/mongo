@@ -1249,7 +1249,7 @@ Status IndexCatalogImpl::_indexKeys(OperationContext* opCtx,
         // For non-hybrid builds, the decision to use the filter for the partial index is left to
         // the IndexAccessMethod. See SERVER-28975 for details.
         if (auto filter = index->getFilterExpression()) {
-            if (!filter->matchesBSON(obj)) {
+            if (!filter->matchesDocument(Document2(obj))) {
                 return Status::OK();
             }
         }
@@ -1333,7 +1333,7 @@ Status IndexCatalogImpl::_indexRecords(OperationContext* opCtx,
 
     std::vector<BsonRecord> filteredBsonRecords;
     for (auto bsonRecord : bsonRecords) {
-        if (filter->matchesBSON(*(bsonRecord.docPtr)))
+        if (filter->matchesDocument(*(bsonRecord.docPtr)))
             filteredBsonRecords.push_back(bsonRecord);
     }
 
@@ -1403,7 +1403,7 @@ void IndexCatalogImpl::_unindexKeys(OperationContext* opCtx,
         // For non-hybrid builds, the decision to use the filter for the partial index is left to
         // the IndexAccessMethod. See SERVER-28975 for details.
         if (auto filter = index->getFilterExpression()) {
-            if (!filter->matchesBSON(obj)) {
+            if (!filter->matchesDocument(obj)) {
                 return;
             }
         }

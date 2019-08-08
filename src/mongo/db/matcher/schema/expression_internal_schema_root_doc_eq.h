@@ -31,6 +31,7 @@
 
 #include "mongo/bson/unordered_fields_bsonobj_comparator.h"
 #include "mongo/db/matcher/expression.h"
+#include "mongo/db/pipeline/document_comparator2.h"
 
 namespace mongo {
 
@@ -50,7 +51,9 @@ public:
      * Constructs a new match expression, taking ownership of 'rhs'.
      */
     explicit InternalSchemaRootDocEqMatchExpression(BSONObj rhs)
-        : MatchExpression(MatchExpression::INTERNAL_SCHEMA_ROOT_DOC_EQ), _rhsObj(std::move(rhs)) {}
+        : MatchExpression(MatchExpression::INTERNAL_SCHEMA_ROOT_DOC_EQ), _rhsObj(std::move(rhs)) {
+        _rhsDoc = Document2(_rhsObj);
+    }
 
     bool matches(const MatchableDocument* doc, MatchDetails* details = nullptr) const final;
 
@@ -58,8 +61,7 @@ public:
      * This expression should only be used to match full documents, not objects within an array
      * in the case of $elemMatch.
      */
-    bool matchesSingleElement(const BSONElement& elem,
-                              MatchDetails* details = nullptr) const final {
+    bool matchesSingleValue(const Value2& elem, MatchDetails* details = nullptr) const final {
         MONGO_UNREACHABLE;
     }
 
@@ -97,7 +99,8 @@ private:
         return [](std::unique_ptr<MatchExpression> expression) { return expression; };
     }
 
-    UnorderedFieldsBSONObjComparator _objCmp;
+    DocumentComparator2 _objCmp;
     BSONObj _rhsObj;
+    Document2 _rhsDoc;
 };
 }  // namespace mongo

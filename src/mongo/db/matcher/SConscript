@@ -11,6 +11,7 @@ env.Library(
         'path_internal.cpp'
     ],
     LIBDEPS=[
+        '$BUILD_DIR/mongo/db/pipeline/document_value',
         '$BUILD_DIR/mongo/base',
         '$BUILD_DIR/mongo/db/common',
     ],
@@ -94,6 +95,16 @@ env.Library(
 )
 
 env.CppUnitTest(
+    target='path_test',
+    source=[
+        'path_test.cpp',
+    ],
+    LIBDEPS=[
+        'path',
+    ],
+)
+
+env.CppUnitTest(
     target='db_matcher_test',
     source=[
         'expression_algo_test.cpp',
@@ -116,7 +127,6 @@ env.CppUnitTest(
         'expression_with_placeholder_test.cpp',
         'matcher_type_set_test.cpp',
         'path_accepting_keyword_test.cpp',
-        'path_test.cpp',
         'rewrite_expr_test.cpp',
         'schema/encrypt_schema_types_test.cpp',
         'schema/expression_internal_schema_all_elem_match_from_index_test.cpp',

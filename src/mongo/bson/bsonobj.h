@@ -246,7 +246,7 @@ public:
     /** Readable representation of a BSON object in an extended JSON-style notation.
         This is an abbreviated representation which might be used for logging.
     */
-    enum { maxToStringRecursionDepth = 100 };
+    enum { maxToStringRecursionDepth = 130 };
 
     std::string toString(bool redactValues = false) const;
     void toString(StringBuilder& s,
